@@ -131,7 +131,6 @@ public class DefaultDistributedLogstreamService
       final File blockIndexDirectory = config.getBlockIndexDirectory();
 
       final StateStorage stateStorage = new StateStorage(blockIndexDirectory, snapshotDirectory);
-
       logStream =
           LogStreams.createFsLogStream(partitionId)
               .logDirectory(logDirectory.getAbsolutePath())

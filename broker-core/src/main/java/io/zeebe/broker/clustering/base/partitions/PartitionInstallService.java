@@ -27,7 +27,6 @@ import static io.zeebe.broker.clustering.base.partitions.PartitionServiceNames.f
 import static io.zeebe.broker.clustering.base.partitions.PartitionServiceNames.leaderOpenLogStreamServiceName;
 import static io.zeebe.broker.clustering.base.partitions.PartitionServiceNames.leaderPartitionServiceName;
 import static io.zeebe.broker.clustering.base.partitions.PartitionServiceNames.partitionLeaderElectionServiceName;
-import static io.zeebe.broker.engine.EngineServiceNames.stateStorageFactoryServiceName;
 import static io.zeebe.logstreams.impl.service.LogStreamServiceNames.distributedLogPartitionServiceName;
 
 import io.atomix.cluster.messaging.ClusterCommunicationService;
@@ -37,11 +36,10 @@ import io.zeebe.broker.system.configuration.BrokerCfg;
 import io.zeebe.distributedlog.StorageConfiguration;
 import io.zeebe.distributedlog.impl.DistributedLogstreamPartition;
 import io.zeebe.distributedlog.impl.LogstreamConfig;
-import io.zeebe.engine.state.StateStorageFactory;
-import io.zeebe.engine.state.StateStorageFactoryService;
 import io.zeebe.logstreams.impl.service.LeaderOpenLogStreamAppenderService;
 import io.zeebe.logstreams.impl.service.LogStreamServiceNames;
 import io.zeebe.logstreams.log.LogStream;
+import io.zeebe.logstreams.state.StateSnapshotController;
 import io.zeebe.servicecontainer.CompositeServiceBuilder;
 import io.zeebe.servicecontainer.Service;
 import io.zeebe.servicecontainer.ServiceName;
@@ -72,7 +70,6 @@ public class PartitionInstallService extends Actor
 
   private ServiceStartContext startContext;
   private ServiceName<LogStream> logStreamServiceName;
-  private ServiceName<StateStorageFactory> stateStorageFactoryServiceName;
   private ServiceName<Void> openLogStreamServiceName;
   private ServiceName<Partition> leaderPartitionServiceName;
   private ServiceName<Partition> followerPartitionServiceName;
@@ -82,6 +79,7 @@ public class PartitionInstallService extends Actor
   private ActorFuture<PartitionLeaderElection> leaderElectionInstallFuture;
   private PartitionLeaderElection leaderElection;
   private ActorFuture<Void> transitionFuture;
+  private ServiceName<StateSnapshotController> snapshotControllerServiceName;
 
   public PartitionInstallService(
       ClusterEventService clusterEventService,
@@ -117,14 +115,6 @@ public class PartitionInstallService extends Actor
 
     logStreamServiceName = LogStreamServiceNames.logStreamServiceName(logName);
     leaderInstallRootServiceName = PartitionServiceNames.leaderInstallServiceRootName(logName);
-
-    // TODO: Do we have to move to distributed log service
-    final StateStorageFactoryService stateStorageFactoryService =
-        new StateStorageFactoryService(configuration.getStatesDirectory());
-    stateStorageFactoryServiceName = stateStorageFactoryServiceName(logName);
-    partitionInstall
-        .createService(stateStorageFactoryServiceName, stateStorageFactoryService)
-        .install();
 
     leaderElection = new PartitionLeaderElection(partitionId);
     partitionLeaderElectionServiceName = partitionLeaderElectionServiceName(logName);
@@ -186,8 +176,7 @@ public class PartitionInstallService extends Actor
     final ActorFuture<Void> removeFuture = removeFollowerPartitionService();
     final ActorFuture<Void> installFuture = installLeaderPartition(term);
     actor.runOnCompletion(
-        Arrays.asList((ActorFuture) removeFuture, (ActorFuture) installFuture),
-        e -> transitionComplete.complete(null));
+        Arrays.asList(removeFuture, installFuture), e -> transitionComplete.complete(null));
   }
 
   @Override
@@ -228,9 +217,10 @@ public class PartitionInstallService extends Actor
     LOG.debug("Installing leader partition service for partition {}", partitionId);
     final Partition partition =
         new Partition(
+            configuration,
             brokerCfg,
-            clusterEventService,
             clusterCommunicationService,
+            clusterEventService,
             partitionId,
             RaftState.LEADER);
 
@@ -259,7 +249,6 @@ public class PartitionInstallService extends Actor
         .createService(leaderPartitionServiceName, partition)
         .dependency(openLogStreamServiceName)
         .dependency(logStreamServiceName, partition.getLogStreamInjector())
-        .dependency(stateStorageFactoryServiceName, partition.getStateStorageFactoryInjector())
         .group(LEADER_PARTITION_GROUP_NAME)
         .install();
 
@@ -270,16 +259,16 @@ public class PartitionInstallService extends Actor
     LOG.debug("Installing follower partition service for partition {}", partitionId);
     final Partition partition =
         new Partition(
+            configuration,
             brokerCfg,
-            clusterEventService,
             clusterCommunicationService,
+            clusterEventService,
             partitionId,
             RaftState.FOLLOWER);
 
     return startContext
         .createService(followerPartitionServiceName, partition)
         .dependency(logStreamServiceName, partition.getLogStreamInjector())
-        .dependency(stateStorageFactoryServiceName, partition.getStateStorageFactoryInjector())
         .group(FOLLOWER_PARTITION_GROUP_NAME)
         .install();
   }
