@@ -18,6 +18,7 @@
 package io.zeebe.broker.engine;
 
 import io.zeebe.broker.clustering.base.partitions.Partition;
+import io.zeebe.db.ZeebeDb;
 import io.zeebe.engine.processor.EventFilter;
 import io.zeebe.engine.processor.MetadataFilter;
 import io.zeebe.engine.processor.StreamProcessorFactory;
@@ -25,7 +26,6 @@ import io.zeebe.engine.processor.StreamProcessorService;
 import io.zeebe.engine.processor.StreamProcessors;
 import io.zeebe.logstreams.log.LogStream;
 import io.zeebe.logstreams.log.LoggedEvent;
-import io.zeebe.logstreams.spi.SnapshotController;
 import io.zeebe.protocol.Protocol;
 import io.zeebe.protocol.impl.record.RecordMetadata;
 import io.zeebe.servicecontainer.Service;
@@ -35,21 +35,15 @@ import io.zeebe.servicecontainer.ServiceStartContext;
 import io.zeebe.util.EnsureUtil;
 import io.zeebe.util.sched.ActorScheduler;
 import io.zeebe.util.sched.future.ActorFuture;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
 public class StreamProcessorServiceFactory implements Service<StreamProcessorServiceFactory> {
   private final ServiceContainer serviceContainer;
-  private final Duration snapshotPeriod;
-  private final int maxSnapshots;
   private ActorScheduler actorScheduler;
 
-  public StreamProcessorServiceFactory(
-      ServiceContainer serviceContainer, Duration snapshotPeriod, int maxSnapshots) {
+  public StreamProcessorServiceFactory(ServiceContainer serviceContainer) {
     this.serviceContainer = serviceContainer;
-    this.snapshotPeriod = snapshotPeriod;
-    this.maxSnapshots = maxSnapshots;
   }
 
   @Override
@@ -69,14 +63,13 @@ public class StreamProcessorServiceFactory implements Service<StreamProcessorSer
   public class Builder {
     private final LogStream logStream;
 
-    private SnapshotController snapshotController;
     private String processorName;
     private int processorId = -1;
     private final List<ServiceName<?>> additionalDependencies = new ArrayList<>();
 
     protected MetadataFilter customEventFilter;
     private StreamProcessorFactory streamProcessorFactory;
-    private boolean enableDeleteData;
+    private ZeebeDb zeebeDb;
 
     public Builder(Partition partition, ServiceName<Partition> serviceName) {
       this.logStream = partition.getLogStream();
@@ -98,13 +91,8 @@ public class StreamProcessorServiceFactory implements Service<StreamProcessorSer
       return this;
     }
 
-    public Builder snapshotController(SnapshotController snapshotController) {
-      this.snapshotController = snapshotController;
-      return this;
-    }
-
-    public Builder deleteDataOnSnapshot(final boolean enabled) {
-      this.enableDeleteData = enabled;
+    public Builder zeebeDb(ZeebeDb zeebeDb) {
+      this.zeebeDb = zeebeDb;
       return this;
     }
 
@@ -122,14 +110,11 @@ public class StreamProcessorServiceFactory implements Service<StreamProcessorSer
       return StreamProcessors.createStreamProcessor(processorName, processorId)
           .actorScheduler(actorScheduler)
           .serviceContainer(serviceContainer)
-          .snapshotController(snapshotController)
-          .snapshotPeriod(snapshotPeriod)
-          .maxSnapshots(maxSnapshots)
+          .zeebeDb(zeebeDb)
           .logStream(logStream)
           .eventFilter(eventFilter)
           .additionalDependencies(additionalDependencies)
           .streamProcessorFactory(streamProcessorFactory)
-          .deleteDataOnSnapshot(enableDeleteData)
           .build();
     }
   }

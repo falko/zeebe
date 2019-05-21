@@ -23,7 +23,6 @@ import io.zeebe.logstreams.impl.Loggers;
 import io.zeebe.logstreams.log.LogStream;
 import io.zeebe.logstreams.log.LogStreamReader;
 import io.zeebe.logstreams.log.LogStreamRecordWriter;
-import io.zeebe.logstreams.spi.SnapshotController;
 import io.zeebe.util.LangUtil;
 import io.zeebe.util.metrics.MetricsManager;
 import io.zeebe.util.sched.Actor;
@@ -41,10 +40,9 @@ public class StreamProcessorController extends Actor {
   private static final Logger LOG = Loggers.LOGSTREAMS_LOGGER;
 
   private final StreamProcessorFactory streamProcessorFactory;
-  private final boolean deleteDataOnSnapshot;
+  private final ZeebeDb zeebeDb;
   private StreamProcessor streamProcessor;
   private final StreamProcessorContext streamProcessorContext;
-  private final SnapshotController snapshotController;
   private String partitionId;
 
   private final LogStreamReader logStreamReader;
@@ -64,8 +62,6 @@ public class StreamProcessorController extends Actor {
   private StreamProcessorMetrics metrics;
   private DbContext dbContext;
   private ProcessingStateMachine processingStateMachine;
-  private AsyncSnapshotDirector asyncSnapshotDirector;
-  private final int maxSnapshots;
 
   public StreamProcessorController(final StreamProcessorContext context) {
     this.streamProcessorContext = context;
@@ -77,12 +73,10 @@ public class StreamProcessorController extends Actor {
     this.actorScheduler = context.getActorScheduler();
 
     this.streamProcessorFactory = context.getStreamProcessorFactory();
-    this.snapshotController = context.getSnapshotController();
+    this.zeebeDb = context.getZeebeDb();
 
     this.logStreamReader = context.getLogStreamReader();
     this.logStreamWriter = context.getLogStreamWriter();
-    this.maxSnapshots = context.getMaxSnapshots();
-    this.deleteDataOnSnapshot = context.getDeleteDataOnSnapshot();
   }
 
   @Override
@@ -114,9 +108,24 @@ public class StreamProcessorController extends Actor {
 
   @Override
   protected void onActorStarted() {
+    LOG.info("Recovering state of partition {} from snapshot", partitionId);
+
+    dbContext = zeebeDb.createContext();
+    streamProcessor = streamProcessorFactory.createProcessor(actor, zeebeDb, dbContext);
+    snapshotPosition = streamProcessor.getPositionToRecoverFrom();
+
     try {
-      LOG.info("Recovering state of partition {} from snapshot", partitionId);
-      snapshotPosition = recoverFromSnapshot();
+      logStreamReader.seekToFirstEvent(); // reset seek position
+      if (snapshotPosition > -1) {
+        final boolean found = logStreamReader.seek(snapshotPosition);
+        if (found && logStreamReader.hasNext()) {
+          logStreamReader.seek(snapshotPosition + 1);
+        } else {
+          throw new IllegalStateException(
+              String.format(
+                  ERROR_MESSAGE_RECOVER_FROM_SNAPSHOT_FAILED, snapshotPosition, getName()));
+        }
+      }
 
       streamProcessor.onOpen(streamProcessorContext);
     } catch (final Throwable e) {
@@ -162,48 +171,10 @@ public class StreamProcessorController extends Actor {
     }
   }
 
-  private long recoverFromSnapshot() throws Exception {
-    snapshotController.recover();
-    final ZeebeDb zeebeDb = snapshotController.openDb();
-
-    dbContext = zeebeDb.createContext();
-    streamProcessor = streamProcessorFactory.createProcessor(actor, zeebeDb, dbContext);
-
-    final long snapshotPosition = streamProcessor.getPositionToRecoverFrom();
-
-    final boolean failedToRecoverReader = !logStreamReader.seekToNextEvent(snapshotPosition);
-    if (failedToRecoverReader) {
-      throw new IllegalStateException(
-          String.format(ERROR_MESSAGE_RECOVER_FROM_SNAPSHOT_FAILED, snapshotPosition, getName()));
-    }
-
-    LOG.info(
-        "Recovered state of partition {} from snapshot at position {}",
-        partitionId,
-        snapshotPosition);
-    return snapshotPosition;
-  }
-
   private void onRecovered() {
     phase = Phase.PROCESSING;
 
     final LogStream logStream = streamProcessorContext.getLogStream();
-    asyncSnapshotDirector =
-        new AsyncSnapshotDirector(
-            streamProcessorContext.name,
-            streamProcessorContext.snapshotPeriod,
-            processingStateMachine::getLastProcessedPositionAsync,
-            processingStateMachine::getLastWrittenPositionAsync,
-            snapshotController,
-            logStream::registerOnCommitPositionUpdatedCondition,
-            logStream::removeOnCommitPositionUpdatedCondition,
-            logStream::getCommitPosition,
-            metrics.getSnapshotMetrics(),
-            maxSnapshots,
-            deleteDataOnSnapshot ? logStream::delete : pos -> {});
-
-    actorScheduler.submitActor(asyncSnapshotDirector);
-
     onCommitPositionUpdatedCondition =
         actor.onCondition(
             getName() + "-on-commit-position-updated", processingStateMachine::readNextEvent);
@@ -232,33 +203,6 @@ public class StreamProcessorController extends Actor {
   @Override
   protected void onActorClosing() {
     metrics.close();
-
-    if (!isFailed()) {
-      actor.run(
-          () -> {
-            if (asyncSnapshotDirector != null) {
-              actor.runOnCompletionBlockingCurrentPhase(
-                  asyncSnapshotDirector.enforceSnapshotCreation(
-                      processingStateMachine.getLastWrittenEventPosition(),
-                      processingStateMachine.getLastSuccessfulProcessedEventPosition()),
-                  (v, ex) -> {
-                    try {
-                      asyncSnapshotDirector.close();
-                      snapshotController.close();
-                    } catch (Exception e) {
-                      LOG.error("Error on closing snapshotController.", e);
-                    }
-                  });
-            } else {
-              try {
-                snapshotController.close();
-              } catch (Exception e) {
-                LOG.error("Error on closing snapshotController.", e);
-              }
-            }
-          });
-    }
-
     streamProcessorContext.getLogStreamReader().close();
 
     if (onCommitPositionUpdatedCondition != null) {
@@ -309,6 +253,18 @@ public class StreamProcessorController extends Actor {
     if (phase == Phase.PROCESSING) {
       actor.submit(processingStateMachine::readNextEvent);
     }
+  }
+
+  public ActorFuture<Long> getLastProcessedPositionAsync() {
+    return processingStateMachine.getLastProcessedPositionAsync();
+  }
+
+  public ActorFuture<Long> getLastWrittenPositionAsync() {
+    return processingStateMachine.getLastWrittenPositionAsync();
+  }
+
+  public StreamProcessorMetrics getMetrics() {
+    return metrics;
   }
 
   private enum Phase {

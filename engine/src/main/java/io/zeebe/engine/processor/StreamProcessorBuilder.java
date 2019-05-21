@@ -19,19 +19,18 @@ package io.zeebe.engine.processor;
 
 import static io.zeebe.engine.processor.StreamProcessorServiceNames.streamProcessorService;
 
+import io.zeebe.db.ZeebeDb;
 import io.zeebe.logstreams.impl.service.LogStreamServiceNames;
 import io.zeebe.logstreams.log.BufferedLogStreamReader;
 import io.zeebe.logstreams.log.LogStream;
 import io.zeebe.logstreams.log.LogStreamReader;
 import io.zeebe.logstreams.log.LogStreamRecordWriter;
 import io.zeebe.logstreams.log.LogStreamWriterImpl;
-import io.zeebe.logstreams.spi.SnapshotController;
 import io.zeebe.servicecontainer.ServiceBuilder;
 import io.zeebe.servicecontainer.ServiceContainer;
 import io.zeebe.servicecontainer.ServiceName;
 import io.zeebe.util.sched.ActorScheduler;
 import io.zeebe.util.sched.future.ActorFuture;
-import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 
@@ -43,9 +42,6 @@ public class StreamProcessorBuilder {
 
   protected ActorScheduler actorScheduler;
 
-  protected Duration snapshotPeriod;
-  protected SnapshotController snapshotController;
-
   private LogStreamReader logStreamReader;
   protected LogStreamRecordWriter logStreamWriter;
 
@@ -54,8 +50,7 @@ public class StreamProcessorBuilder {
   protected ServiceContainer serviceContainer;
   private List<ServiceName<?>> additionalDependencies;
   private StreamProcessorFactory streamProcessorFactory;
-  private int maxSnapshots;
-  private boolean deleteDataOnSnapshot;
+  private ZeebeDb zeebeDb;
 
   public StreamProcessorBuilder(int id, String name) {
     this.id = id;
@@ -84,21 +79,6 @@ public class StreamProcessorBuilder {
     return this;
   }
 
-  public StreamProcessorBuilder snapshotPeriod(Duration snapshotPeriod) {
-    this.snapshotPeriod = snapshotPeriod;
-    return this;
-  }
-
-  public StreamProcessorBuilder maxSnapshots(int maxSnapshots) {
-    this.maxSnapshots = maxSnapshots;
-    return this;
-  }
-
-  public StreamProcessorBuilder snapshotController(SnapshotController snapshotController) {
-    this.snapshotController = snapshotController;
-    return this;
-  }
-
   /** @param eventFilter may be null to accept all events */
   public StreamProcessorBuilder eventFilter(EventFilter eventFilter) {
     this.eventFilter = eventFilter;
@@ -110,8 +90,8 @@ public class StreamProcessorBuilder {
     return this;
   }
 
-  public StreamProcessorBuilder deleteDataOnSnapshot(final boolean deleteData) {
-    this.deleteDataOnSnapshot = deleteData;
+  public StreamProcessorBuilder zeebeDb(final ZeebeDb zeebeDb) {
+    this.zeebeDb = zeebeDb;
     return this;
   }
 
@@ -146,7 +126,7 @@ public class StreamProcessorBuilder {
     Objects.requireNonNull(logStream, "No log stream provided.");
     Objects.requireNonNull(actorScheduler, "No task scheduler provided.");
     Objects.requireNonNull(serviceContainer, "No service container provided.");
-    Objects.requireNonNull(snapshotController, "No snapshot controller provided.");
+    Objects.requireNonNull(zeebeDb, "No database provided.");
   }
 
   private StreamProcessorContext createContext() {
@@ -161,14 +141,7 @@ public class StreamProcessorBuilder {
 
     ctx.setEventFilter(eventFilter);
 
-    if (snapshotPeriod == null) {
-      snapshotPeriod = Duration.ofMinutes(1);
-    }
-
-    ctx.setSnapshotPeriod(snapshotPeriod);
-    ctx.setMaxSnapshots(maxSnapshots);
-    ctx.setSnapshotController(snapshotController);
-    ctx.setDeleteDataOnSnapshot(deleteDataOnSnapshot);
+    ctx.setZeebeDb(zeebeDb);
 
     logStreamReader = new BufferedLogStreamReader();
     ctx.setLogStreamReader(logStreamReader);

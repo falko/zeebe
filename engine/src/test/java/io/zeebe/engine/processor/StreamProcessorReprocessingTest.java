@@ -147,7 +147,7 @@ public class StreamProcessorReprocessingTest {
     return StreamProcessors.createStreamProcessor(PROCESSOR_NAME, PROCESSOR_ID)
         .logStream(logStreamRule.getLogStream())
         .actorScheduler(logStreamRule.getActorScheduler())
-        .snapshotController(stateSnapshotController)
+        .zeebeDb(stateSnapshotController.openDb())
         .serviceContainer(logStreamRule.getServiceContainer())
         .streamProcessorFactory(streamProcessorFactory)
         .eventFilter(eventFilter)

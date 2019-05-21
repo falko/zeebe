@@ -27,8 +27,6 @@ import io.zeebe.broker.system.SystemContext;
 import io.zeebe.broker.system.configuration.BrokerCfg;
 import io.zeebe.broker.transport.TransportServiceNames;
 import io.zeebe.servicecontainer.ServiceContainer;
-import io.zeebe.util.DurationUtil;
-import java.time.Duration;
 
 public class EngineComponent implements Component {
 
@@ -37,18 +35,13 @@ public class EngineComponent implements Component {
     final ServiceContainer serviceContainer = context.getServiceContainer();
     final BrokerCfg brokerConfiguration = context.getBrokerConfiguration();
 
-    final Duration snapshotPeriod =
-        DurationUtil.parse(brokerConfiguration.getData().getSnapshotPeriod());
-    final int maxSnapshots = brokerConfiguration.getData().getMaxSnapshots();
-
     final StreamProcessorServiceFactory streamProcessorFactory =
-        new StreamProcessorServiceFactory(serviceContainer, snapshotPeriod, maxSnapshots);
+        new StreamProcessorServiceFactory(serviceContainer);
     serviceContainer
         .createService(STREAM_PROCESSOR_SERVICE_FACTORY, streamProcessorFactory)
         .install();
 
-    final EngineService streamProcessorService =
-        new EngineService(brokerConfiguration.getCluster());
+    final EngineService streamProcessorService = new EngineService(brokerConfiguration);
     serviceContainer
         .createService(ENGINE_SERVICE_NAME, streamProcessorService)
         .dependency(

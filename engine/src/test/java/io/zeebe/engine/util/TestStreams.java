@@ -435,7 +435,7 @@ public class TestStreams {
       final StreamProcessorService processorService =
           StreamProcessors.createStreamProcessor(name, streamProcessorId)
               .logStream(stream)
-              .snapshotController(currentSnapshotController)
+              .zeebeDb(currentSnapshotController.openDb())
               .actorScheduler(actorScheduler)
               .serviceContainer(serviceContainer)
               .streamProcessorFactory(

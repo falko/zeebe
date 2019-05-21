@@ -24,7 +24,6 @@ import io.zeebe.broker.clustering.base.partitions.Partition;
 import io.zeebe.broker.exporter.jar.ExporterJarLoadException;
 import io.zeebe.broker.exporter.repo.ExporterLoadException;
 import io.zeebe.broker.exporter.repo.ExporterRepository;
-import io.zeebe.broker.exporter.stream.ExporterColumnFamilies;
 import io.zeebe.broker.exporter.stream.ExporterDirector;
 import io.zeebe.broker.exporter.stream.ExporterDirectorContext;
 import io.zeebe.broker.exporter.stream.ExportersState;
@@ -85,10 +84,10 @@ public class ExporterManagerService implements Service<ExporterManagerService> {
   }
 
   private void startExporter(ServiceName<Partition> partitionName, Partition partition) {
-    final SnapshotController snapshotController = partition.getExporterSnapshotController();
+    final SnapshotController snapshotController = partition.getSnapshotController();
 
     if (exporterRepository.getExporters().isEmpty()) {
-      clearExporterState(snapshotController);
+      clearExporterState(partition.getZeebeDb());
       partition.getLogStream().setExporterPositionSupplier(() -> Long.MAX_VALUE);
     } else {
       final ExporterDirectorContext context =
@@ -118,17 +117,14 @@ public class ExporterManagerService implements Service<ExporterManagerService> {
     }
   }
 
-  private void clearExporterState(SnapshotController snapshotController) {
+  private void clearExporterState(ZeebeDb zeebeDb) {
     // We need to remove the exporter positions from the state in case that one of the exporters is
     // configured later again. The processor would try to continue from the previous position which
     // may not
     // exist anymore in the logstream.
 
     try {
-      // TODO (saig0): don't open and recover the latest snapshot in the service - #2353
-      final long snapshotPosition = snapshotController.recover();
-      final ZeebeDb<ExporterColumnFamilies> db = snapshotController.openDb();
-      final ExportersState state = new ExportersState(db, db.createContext());
+      final ExportersState state = new ExportersState(zeebeDb, zeebeDb.createContext());
 
       state.visitPositions(
           (exporterId, position) -> {
@@ -138,18 +134,8 @@ public class ExporterManagerService implements Service<ExporterManagerService> {
                 "The exporter '{}' is not configured anymore. Its position is removed from the state.",
                 exporterId);
           });
-
-      // TODO (saig0): don't take a new snapshot in the service - #2353
-      snapshotController.takeSnapshot(snapshotPosition + 1);
-
     } catch (Exception e) {
       LOG.error("Failed to remove exporters from state", e);
-    } finally {
-      try {
-        snapshotController.close();
-      } catch (Exception e) {
-        LOG.error("Unexpected exception happened on closing snapshot controller.", e);
-      }
     }
   }
 

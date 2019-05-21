@@ -17,13 +17,12 @@
  */
 package io.zeebe.engine.processor;
 
+import io.zeebe.db.ZeebeDb;
 import io.zeebe.logstreams.log.LogStream;
 import io.zeebe.logstreams.log.LogStreamReader;
 import io.zeebe.logstreams.log.LogStreamRecordWriter;
-import io.zeebe.logstreams.spi.SnapshotController;
 import io.zeebe.util.sched.ActorControl;
 import io.zeebe.util.sched.ActorScheduler;
-import java.time.Duration;
 
 public class StreamProcessorContext {
   protected int id;
@@ -34,8 +33,7 @@ public class StreamProcessorContext {
   private LogStreamReader logStreamReader;
   protected LogStreamRecordWriter logStreamWriter;
 
-  protected Duration snapshotPeriod;
-  protected SnapshotController snapshotController;
+  protected ZeebeDb zeebeDb;
 
   protected ActorScheduler actorScheduler;
   private ActorControl actorControl;
@@ -44,8 +42,6 @@ public class StreamProcessorContext {
 
   private Runnable suspendRunnable;
   private Runnable resumeRunnable;
-  private int maxSnapshots;
-  private boolean deleteDataOnSnapshot;
 
   public LogStream getLogStream() {
     return logStream;
@@ -95,20 +91,12 @@ public class StreamProcessorContext {
     this.logStreamWriter = logStreamWriter;
   }
 
-  public Duration getSnapshotPeriod() {
-    return snapshotPeriod;
+  public ZeebeDb getZeebeDb() {
+    return zeebeDb;
   }
 
-  public void setSnapshotPeriod(Duration snapshotPeriod) {
-    this.snapshotPeriod = snapshotPeriod;
-  }
-
-  public SnapshotController getSnapshotController() {
-    return snapshotController;
-  }
-
-  public void setSnapshotController(SnapshotController snapshotController) {
-    this.snapshotController = snapshotController;
+  public void setZeebeDb(final ZeebeDb zeebeDb) {
+    this.zeebeDb = zeebeDb;
   }
 
   public void setEventFilter(EventFilter eventFilter) {
@@ -159,21 +147,5 @@ public class StreamProcessorContext {
 
   public StreamProcessorFactory getStreamProcessorFactory() {
     return streamProcessorFactory;
-  }
-
-  public void setMaxSnapshots(final int maxSnapshots) {
-    this.maxSnapshots = maxSnapshots;
-  }
-
-  public int getMaxSnapshots() {
-    return maxSnapshots;
-  }
-
-  public void setDeleteDataOnSnapshot(final boolean deleteDataOnSnapshot) {
-    this.deleteDataOnSnapshot = deleteDataOnSnapshot;
-  }
-
-  public boolean getDeleteDataOnSnapshot() {
-    return deleteDataOnSnapshot;
   }
 }

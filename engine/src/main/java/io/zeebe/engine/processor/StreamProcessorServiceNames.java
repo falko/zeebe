@@ -27,4 +27,11 @@ public class StreamProcessorServiceNames {
         String.format("logstream.%s.processor.%s", logName, processorName),
         StreamProcessorService.class);
   }
+
+  public static final ServiceName<AsyncSnapshotingDirectorService> asyncSnapshotingDirectorService(
+      String logName, String processorName) {
+    return ServiceName.newServiceName(
+        String.format("logstream.%s.processor.%s.snapshot-director", logName, processorName),
+        AsyncSnapshotingDirectorService.class);
+  }
 }

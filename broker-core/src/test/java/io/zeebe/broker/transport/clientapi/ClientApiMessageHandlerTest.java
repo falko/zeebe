@@ -29,7 +29,9 @@ import io.atomix.cluster.messaging.ClusterCommunicationService;
 import io.atomix.cluster.messaging.ClusterEventService;
 import io.zeebe.broker.clustering.base.partitions.Partition;
 import io.zeebe.broker.clustering.base.partitions.RaftState;
+import io.zeebe.broker.system.configuration.BrokerCfg;
 import io.zeebe.distributedlog.DistributedLogstreamService;
+import io.zeebe.distributedlog.StorageConfiguration;
 import io.zeebe.distributedlog.impl.DefaultDistributedLogstreamService;
 import io.zeebe.distributedlog.impl.DistributedLogstreamPartition;
 import io.zeebe.distributedlog.impl.DistributedLogstreamServiceConfig;
@@ -188,9 +190,10 @@ public class ClientApiMessageHandlerTest {
 
     final Partition partition =
         new Partition(
-            null,
-            mock(ClusterEventService.class),
+            mock(StorageConfiguration.class),
+            new BrokerCfg(),
             mock(ClusterCommunicationService.class),
+            mock(ClusterEventService.class),
             LOG_STREAM_PARTITION_ID,
             RaftState.LEADER) {
           @Override
