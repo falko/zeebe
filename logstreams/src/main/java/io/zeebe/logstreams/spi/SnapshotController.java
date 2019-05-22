@@ -16,6 +16,7 @@
 package io.zeebe.logstreams.spi;
 
 import io.zeebe.db.ZeebeDb;
+import io.zeebe.logstreams.impl.delete.DeletionService;
 import io.zeebe.logstreams.state.SnapshotReplicationListener;
 import java.io.IOException;
 import java.util.function.Consumer;
@@ -51,7 +52,7 @@ public interface SnapshotController extends AutoCloseable {
   void replicateLatestSnapshot(Consumer<Runnable> executor);
 
   /** Registers to consumes replicated snapshots. */
-  void consumeReplicatedSnapshots(Consumer<Long> dataDeleteCallback);
+  void consumeReplicatedSnapshots(DeletionService deletionService);
 
   /**
    * Recovers the state from the latest snapshot and returns the lower bound snapshot position.

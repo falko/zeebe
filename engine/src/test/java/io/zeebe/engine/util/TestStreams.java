@@ -45,6 +45,7 @@ import io.zeebe.engine.processor.TypedRecordProcessorFactory;
 import io.zeebe.engine.processor.TypedRecordProcessors;
 import io.zeebe.engine.state.StateStorageFactory;
 import io.zeebe.logstreams.LogStreams;
+import io.zeebe.logstreams.impl.delete.NoopDeletionService;
 import io.zeebe.logstreams.log.BufferedLogStreamReader;
 import io.zeebe.logstreams.log.LogStream;
 import io.zeebe.logstreams.log.LogStreamReader;
@@ -331,6 +332,7 @@ public class TestStreams {
             processorService,
             currentSnapshotController,
             stream,
+            new NoopDeletionService(),
             snapshotInterval,
             maxSnapshot,
             metrics);

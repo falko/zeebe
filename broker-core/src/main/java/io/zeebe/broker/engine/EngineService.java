@@ -23,6 +23,7 @@ import io.zeebe.broker.clustering.base.topology.TopologyManager;
 import io.zeebe.broker.clustering.base.topology.TopologyPartitionListenerImpl;
 import io.zeebe.broker.engine.impl.DeploymentDistributorImpl;
 import io.zeebe.broker.engine.impl.SubscriptionCommandSenderImpl;
+import io.zeebe.broker.logstreams.delete.LeaderLogStreamDeletionService;
 import io.zeebe.broker.system.configuration.BrokerCfg;
 import io.zeebe.broker.system.configuration.ClusterCfg;
 import io.zeebe.broker.system.configuration.DataCfg;
@@ -137,12 +138,15 @@ public class EngineService implements Service<EngineService> {
         StreamProcessorServiceNames.asyncSnapshotingDirectorService(logName, PROCESSOR_NAME);
     final ServiceName<StreamProcessor> streamProcessorControllerServiceName =
         StreamProcessorServiceNames.streamProcessorService(logName, EngineService.PROCESSOR_NAME);
+    final ServiceName<LeaderLogStreamDeletionService> deletionServiceName =
+        EngineServiceNames.leaderLogStreamDeletionService(partition.getPartitionId());
 
     serviceContext
         .createService(snapshotDirectorServiceName, snapshotDirectorService)
         .dependency(
             streamProcessorControllerServiceName,
             snapshotDirectorService.getStreamProcessorInjector())
+        .dependency(deletionServiceName, snapshotDirectorService.getDeletionServiceInjector())
         .install();
   }
 

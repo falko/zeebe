@@ -236,33 +236,6 @@ public class LogStreamService implements LogStream, Service<LogStream> {
   }
 
   @Override
-  public void delete(long position) {
-    // supplier may have been removed due to service being stopped
-    if (exporterPositionSupplier == null) {
-      return;
-    }
-
-    final long lowestExportedPosition = exporterPositionSupplier.get();
-    position = Math.min(position, lowestExportedPosition);
-
-    final long blockAddress = logBlockIndex.lookupBlockAddress(logBlockIndexContext, position);
-
-    if (blockAddress != LogBlockIndex.VALUE_NOT_FOUND) {
-      LOG.info(
-          "Delete data from logstream until position '{}' (address: '{}').",
-          position,
-          blockAddress);
-
-      logBlockIndex.deleteUpToPosition(logBlockIndexContext, position);
-      logStorage.delete(blockAddress);
-    } else {
-      LOG.debug(
-          "Tried to delete from log stream, but found no corresponding address in the log block index for the given position {}.",
-          position);
-    }
-  }
-
-  @Override
   public void setCommitPosition(final long commitPosition) {
     this.commitPosition.setOrdered(commitPosition);
 
@@ -277,11 +250,6 @@ public class LogStreamService implements LogStream, Service<LogStream> {
   @Override
   public void removeOnCommitPositionUpdatedCondition(final ActorCondition condition) {
     onCommitPositionUpdatedConditions.removeConsumer(condition);
-  }
-
-  @Override
-  public void setExporterPositionSupplier(final Supplier<Long> supplier) {
-    exporterPositionSupplier = supplier;
   }
 
   public Injector<LogBlockIndex> getLogBlockIndexInjector() {
