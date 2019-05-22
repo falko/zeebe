@@ -105,13 +105,18 @@ public class AsyncSnapshotingTest {
   }
 
   private void createAsyncSnapshotDirector(ActorScheduler actorScheduler) {
+    final SnapshotMetrics metrics =
+        new SnapshotMetrics(
+            logStreamRule.getActorScheduler().getMetricsManager(), PROCESSOR_NAME, "1");
+
     asyncSnapshotDirector =
         new AsyncSnapshotDirector(
             mockStreamProcessorController,
             snapshotController,
             logStream,
             Duration.ofMinutes(1),
-            MAX_SNAPSHOTS);
+            MAX_SNAPSHOTS,
+            metrics);
     actorScheduler.submitActor(this.asyncSnapshotDirector).join();
   }
 

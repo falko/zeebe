@@ -88,7 +88,7 @@ public class Partition implements Service<Partition> {
     logStream = logStreamInjector.getValue();
     logName = logStream.getLogName();
 
-    createSnapshotController();
+    snapshotController = createSnapshotController();
 
     if (state == RaftState.FOLLOWER) {
       logStream.setExporterPositionSupplier(this::getLowestReplicatedExportedPosition);
@@ -98,9 +98,10 @@ public class Partition implements Service<Partition> {
       try {
         snapshotController.recover();
       } catch (Exception e) {
-        LOG.error(
-            "Unexpected error occurred while recovering snapshot controller during leader partition install for partition {}",
-            partitionId,
+        throw new IllegalStateException(
+            String.format(
+                "Unexpected error occurred while recovering snapshot controller during leader partition install for partition %d",
+                partitionId),
             e);
       }
       executor =
@@ -155,7 +156,7 @@ public class Partition implements Service<Partition> {
     return configuration;
   }
 
-  private void createSnapshotController() {
+  private StateSnapshotController createSnapshotController() {
     final String streamProcessorName = EngineService.PROCESSOR_NAME;
 
     final StateStorageFactory storageFactory =
@@ -167,12 +168,11 @@ public class Partition implements Service<Partition> {
             ? new StateReplication(clusterEventService, partitionId, streamProcessorName)
             : new NoneSnapshotReplication();
 
-    snapshotController =
-        new StateSnapshotController(
-            DefaultZeebeDbFactory.DEFAULT_DB_FACTORY,
-            stateStorage,
-            stateReplication,
-            brokerCfg.getData().getMaxSnapshots());
+    return new StateSnapshotController(
+        DefaultZeebeDbFactory.DEFAULT_DB_FACTORY,
+        stateStorage,
+        stateReplication,
+        brokerCfg.getData().getMaxSnapshots());
   }
 
   private boolean shouldReplicateSnapshots() {

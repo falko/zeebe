@@ -33,7 +33,6 @@ public class AsyncSnapshotDirector extends Actor {
   private static final Logger LOG = Loggers.SNAPSHOT_LOGGER;
   private static final String LOG_MSG_WAIT_UNTIL_COMMITTED =
       "Finished taking snapshot, need to wait until last written event position {} is committed, current commit position is {}. After that snapshot can be marked as valid.";
-
   private static final String ERROR_MSG_ON_RESOLVE_PROCESSED_POS =
       "Unexpected error in resolving last processed position.";
   private static final String ERROR_MSG_ON_RESOLVE_WRITTEN_POS =
@@ -42,7 +41,6 @@ public class AsyncSnapshotDirector extends Actor {
       "Unexpected exception occurred on ensuring maximum snapshot count.";
   private static final String ERROR_MSG_MOVE_SNAPSHOT =
       "Unexpected exception occurred on moving valid snapshot.";
-
   private static final String LOG_MSG_ENFORCE_SNAPSHOT =
       "Enforce snapshot creation. Last successful processed position is {}.";
   private static final String ERROR_MSG_ENFORCED_SNAPSHOT =
@@ -51,9 +49,7 @@ public class AsyncSnapshotDirector extends Actor {
   private static final int INITIAL_POSITION = -1;
 
   private final Runnable prepareTakingSnapshot = this::prepareTakingSnapshot;
-
   private final SnapshotController snapshotController;
-
   private final LogStream logStream;
   private final String name;
   private final Duration snapshotRate;
@@ -66,7 +62,6 @@ public class AsyncSnapshotDirector extends Actor {
   private long lastWrittenEventPosition = INITIAL_POSITION;
   private boolean pendingSnapshot;
   private long lowerBoundSnapshotPosition;
-
   private long lastValidSnapshotPosition;
 
   public AsyncSnapshotDirector(
@@ -74,15 +69,16 @@ public class AsyncSnapshotDirector extends Actor {
       SnapshotController snapshotController,
       LogStream logStream,
       Duration snapshotRate,
-      int maxSnapshots) {
+      int maxSnapshots,
+      SnapshotMetrics metrics) {
     this.streamProcessorController = streamProcessorController;
     this.snapshotController = snapshotController;
     this.logStream = logStream;
     this.processorName = streamProcessorController.getName();
     this.name = processorName + "-snapshot-director";
     this.snapshotRate = snapshotRate;
-    this.metrics = streamProcessorController.getMetrics().getSnapshotMetrics();
     this.maxSnapshots = Math.max(maxSnapshots, 1);
+    this.metrics = metrics;
   }
 
   @Override
@@ -106,28 +102,6 @@ public class AsyncSnapshotDirector extends Actor {
 
   private String getConditionNameForPosition() {
     return getName() + "-wait-for-endPosition-committed";
-  }
-
-  @Override
-  protected void onActorCloseRequested() {
-    logStream.removeOnCommitPositionUpdatedCondition(commitCondition);
-  }
-
-  public void enforceSnapshotCreation(
-      final long lastWrittenPosition, final long lastProcessedPosition) {
-    final long commitPosition = logStream.getCommitPosition();
-
-    if (!pendingSnapshot
-        && commitPosition >= lastWrittenPosition
-        && lastProcessedPosition > lastValidSnapshotPosition) {
-
-      LOG.debug(LOG_MSG_ENFORCE_SNAPSHOT, lastProcessedPosition);
-      try {
-        createSnapshot(() -> snapshotController.takeSnapshot(lastProcessedPosition));
-      } catch (Exception ex) {
-        LOG.error(ERROR_MSG_ENFORCED_SNAPSHOT, ex);
-      }
-    }
   }
 
   private void prepareTakingSnapshot() {
@@ -220,6 +194,27 @@ public class AsyncSnapshotDirector extends Actor {
     }
   }
 
+  protected void enforceSnapshotCreation(
+      final long lastWrittenPosition, final long lastProcessedPosition) {
+    final long commitPosition = logStream.getCommitPosition();
+
+    if (commitPosition >= lastWrittenPosition
+        && lastProcessedPosition > lastValidSnapshotPosition) {
+
+      LOG.debug(LOG_MSG_ENFORCE_SNAPSHOT, lastProcessedPosition);
+      try {
+        createSnapshot(() -> snapshotController.takeSnapshot(lastProcessedPosition));
+      } catch (Exception ex) {
+        LOG.error(ERROR_MSG_ENFORCED_SNAPSHOT, ex);
+      }
+    }
+  }
+
+  @Override
+  protected void onActorCloseRequested() {
+    logStream.removeOnCommitPositionUpdatedCondition(commitCondition);
+  }
+
   public ActorFuture<Void> close() {
     final CompletableActorFuture future = new CompletableActorFuture();
 
@@ -234,14 +229,17 @@ public class AsyncSnapshotDirector extends Actor {
                         (processedPosition, ex2) -> {
                           if (ex2 == null) {
                             enforceSnapshotCreation(writtenPosition, processedPosition);
+                            metrics.close();
                             actor.close();
                             future.complete(null);
                           } else {
                             LOG.error(ERROR_MSG_ON_RESOLVE_PROCESSED_POS, ex2);
+                            future.completeExceptionally(ex2);
                           }
                         });
 
                   } else {
+                    future.completeExceptionally(ex1);
                     LOG.error(ERROR_MSG_ON_RESOLVE_WRITTEN_POS, ex1);
                   }
                 }));

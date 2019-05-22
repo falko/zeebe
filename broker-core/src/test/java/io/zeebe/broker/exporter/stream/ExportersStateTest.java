@@ -49,7 +49,7 @@ public class ExportersStateTest {
   public void setup() throws Exception {
     final File dbDirectory = temporaryFolder.newFolder();
 
-    db = DefaultZeebeDbFactory.defaultFactory(ZbColumnFamilies.class).createDb(dbDirectory);
+    db = DefaultZeebeDbFactory.DEFAULT_DB_FACTORY.createDb(dbDirectory);
     state = new ExportersState(db, db.createContext());
   }
 

@@ -696,13 +696,17 @@ public class StreamProcessorControllerTest {
 
     streamProcessorController = streamProcessorService.getController();
 
+    final SnapshotMetrics metrics =
+        new SnapshotMetrics(
+            logStreamRule.getActorScheduler().getMetricsManager(), PROCESSOR_NAME, "1");
     asyncSnapshotDirector =
         new AsyncSnapshotDirector(
             streamProcessorController,
             snapshotController,
             logStreamRule.getLogStream(),
             SNAPSHOT_INTERVAL,
-            MAX_SNAPSHOTS);
+            MAX_SNAPSHOTS,
+            metrics);
 
     logStreamRule.getActorScheduler().submitActor(asyncSnapshotDirector);
   }

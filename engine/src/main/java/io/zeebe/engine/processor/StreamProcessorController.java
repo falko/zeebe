@@ -110,21 +110,15 @@ public class StreamProcessorController extends Actor {
   protected void onActorStarted() {
     LOG.info("Recovering state of partition {} from snapshot", partitionId);
 
-    dbContext = zeebeDb.createContext();
-    streamProcessor = streamProcessorFactory.createProcessor(actor, zeebeDb, dbContext);
-    snapshotPosition = streamProcessor.getPositionToRecoverFrom();
-
     try {
+      dbContext = zeebeDb.createContext();
+      streamProcessor = streamProcessorFactory.createProcessor(actor, zeebeDb, dbContext);
+      snapshotPosition = streamProcessor.getPositionToRecoverFrom();
+
       logStreamReader.seekToFirstEvent(); // reset seek position
-      if (snapshotPosition > -1) {
-        final boolean found = logStreamReader.seek(snapshotPosition);
-        if (found && logStreamReader.hasNext()) {
-          logStreamReader.seek(snapshotPosition + 1);
-        } else {
-          throw new IllegalStateException(
-              String.format(
-                  ERROR_MESSAGE_RECOVER_FROM_SNAPSHOT_FAILED, snapshotPosition, getName()));
-        }
+      if (!logStreamReader.seekToNextEvent(snapshotPosition)) {
+        throw new IllegalStateException(
+            String.format(ERROR_MESSAGE_RECOVER_FROM_SNAPSHOT_FAILED, snapshotPosition, getName()));
       }
 
       streamProcessor.onOpen(streamProcessorContext);

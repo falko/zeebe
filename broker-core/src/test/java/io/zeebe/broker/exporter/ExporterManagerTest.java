@@ -90,7 +90,6 @@ public class ExporterManagerTest {
   @Test
   public void shouldRemoveExporterFromState() {
     // given
-    waitForStreamProcessor();
     final long deploymentKey1 = testClient.deploy(WORKFLOW);
     waitUntil(() -> isDeploymentExported(deploymentKey1));
 

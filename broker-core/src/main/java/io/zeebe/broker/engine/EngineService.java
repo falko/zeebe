@@ -125,6 +125,7 @@ public class EngineService implements Service<EngineService> {
 
     final AsyncSnapshotingDirectorService snapshotDirectorService =
         new AsyncSnapshotingDirectorService(
+            partition.getPartitionId(),
             partition.getLogStream(),
             partition.getSnapshotController(),
             snapshotPeriod,
