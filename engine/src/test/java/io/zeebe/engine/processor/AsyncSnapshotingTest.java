@@ -30,6 +30,7 @@ import static org.mockito.Mockito.when;
 import io.zeebe.db.impl.DefaultColumnFamily;
 import io.zeebe.db.impl.rocksdb.ZeebeRocksDbFactory;
 import io.zeebe.engine.util.LogStreamRule;
+import io.zeebe.logstreams.impl.delete.NoopDeletionService;
 import io.zeebe.logstreams.log.LogStream;
 import io.zeebe.logstreams.state.StateSnapshotController;
 import io.zeebe.logstreams.state.StateStorage;
@@ -67,6 +68,7 @@ public class AsyncSnapshotingTest {
   private LogStream logStream;
   private AsyncSnapshotDirector asyncSnapshotDirector;
   private StreamProcessor mockStreamProcessor;
+  private NoopDeletionService noopDeletionService;
 
   @Before
   public void setup() throws IOException {
@@ -109,11 +111,13 @@ public class AsyncSnapshotingTest {
         new SnapshotMetrics(
             logStreamRule.getActorScheduler().getMetricsManager(), PROCESSOR_NAME, "1");
 
+    noopDeletionService = spy(new NoopDeletionService());
     asyncSnapshotDirector =
         new AsyncSnapshotDirector(
             mockStreamProcessor,
             snapshotController,
             logStream,
+            noopDeletionService,
             Duration.ofMinutes(1),
             MAX_SNAPSHOTS,
             metrics);
@@ -212,7 +216,7 @@ public class AsyncSnapshotingTest {
   }
 
   @Test
-  public void shouldInvokeDataDeleteCallbackOnMaxSnapshots() throws IOException {
+  public void shouldDeleteDataOnMaxSnapshots() throws IOException {
     // when
     logStreamRule.getClock().addTime(Duration.ofMinutes(1));
     verify(snapshotController, TIMEOUT.times(1)).takeTempSnapshot();
@@ -225,7 +229,7 @@ public class AsyncSnapshotingTest {
     verify(snapshotController, TIMEOUT.times(1)).moveValidSnapshot(32);
 
     // then
-    verify(logStream, TIMEOUT).delete(eq(25L));
+    verify(noopDeletionService, TIMEOUT).delete(eq(25L));
   }
 
   @Test

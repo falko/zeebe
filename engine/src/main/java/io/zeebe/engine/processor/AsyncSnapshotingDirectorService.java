@@ -17,6 +17,7 @@
  */
 package io.zeebe.engine.processor;
 
+import io.zeebe.logstreams.impl.delete.DeletionService;
 import io.zeebe.logstreams.log.LogStream;
 import io.zeebe.logstreams.state.StateSnapshotController;
 import io.zeebe.servicecontainer.Injector;
@@ -27,6 +28,7 @@ import java.time.Duration;
 
 public class AsyncSnapshotingDirectorService implements Service<AsyncSnapshotingDirectorService> {
   private final Injector<StreamProcessor> streamProcessorInjector = new Injector<>();
+  private final Injector<DeletionService> deletionServiceInjector = new Injector<>();
 
   private final int partitionId;
   private final LogStream logStream;
@@ -50,18 +52,20 @@ public class AsyncSnapshotingDirectorService implements Service<AsyncSnapshoting
 
   @Override
   public void start(final ServiceStartContext startContext) {
-    final StreamProcessor controller = streamProcessorInjector.getValue();
+    final StreamProcessor streamProcessor = streamProcessorInjector.getValue();
+    final DeletionService deletionService = deletionServiceInjector.getValue();
     final SnapshotMetrics snapshotMetrics =
         new SnapshotMetrics(
             startContext.getScheduler().getMetricsManager(),
-            controller.getName(),
+            streamProcessor.getName(),
             String.valueOf(partitionId));
 
     asyncSnapshotDirector =
         new AsyncSnapshotDirector(
-            controller,
+            streamProcessor,
             snapshotController,
             logStream,
+            deletionService,
             snapshotPeriod,
             maxSnapshots,
             snapshotMetrics);
@@ -84,5 +88,9 @@ public class AsyncSnapshotingDirectorService implements Service<AsyncSnapshoting
 
   public Injector<StreamProcessor> getStreamProcessorInjector() {
     return streamProcessorInjector;
+  }
+
+  public Injector<DeletionService> getDeletionServiceInjector() {
+    return deletionServiceInjector;
   }
 }

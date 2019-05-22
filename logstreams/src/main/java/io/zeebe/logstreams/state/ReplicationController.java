@@ -18,6 +18,7 @@ package io.zeebe.logstreams.state;
 import static java.nio.file.StandardOpenOption.CREATE_NEW;
 
 import io.zeebe.logstreams.impl.Loggers;
+import io.zeebe.logstreams.impl.delete.DeletionService;
 import io.zeebe.util.FileUtil;
 import java.io.File;
 import java.io.IOException;
@@ -25,7 +26,6 @@ import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.zip.CRC32;
 import org.agrona.collections.Long2LongHashMap;
@@ -42,9 +42,9 @@ final class ReplicationController {
   private final SnapshotReplication replication;
   private final Long2LongHashMap receivedSnapshots = new Long2LongHashMap(MISSING_SNAPSHOT);
   private final StateStorage storage;
+  private DeletionService deletionService;
   private final Runnable ensureMaxSnapshotCount;
   private final Supplier<Long> deletablePositionSupplier;
-  private Consumer<Long> deleteDataCallback;
 
   private final List<SnapshotReplicationListener> replicationListeners =
       new CopyOnWriteArrayList<>();
@@ -81,8 +81,8 @@ final class ReplicationController {
   }
 
   /** Registering for consuming snapshot chunks. */
-  public void consumeReplicatedSnapshots(Consumer<Long> dataDeleteCallback) {
-    this.deleteDataCallback = dataDeleteCallback;
+  public void consumeReplicatedSnapshots(DeletionService deletionService) {
+    this.deletionService = deletionService;
     replication.consume(this::consumeSnapshotChunk);
   }
 
@@ -198,8 +198,8 @@ final class ReplicationController {
           totalChunkCount,
           validSnapshotDirectory.toPath());
       tryToMarkSnapshotAsValid(snapshotChunk, tmpSnapshotDirectory, validSnapshotDirectory);
-      if (deleteDataCallback != null) {
-        deleteDataCallback.accept(deletablePositionSupplier.get());
+      if (deletionService != null) {
+        deletionService.delete(deletablePositionSupplier.get());
       }
     } else {
       LOG.debug(

@@ -32,7 +32,9 @@ import io.zeebe.distributedlog.impl.DistributedLogstreamPartition;
 import io.zeebe.distributedlog.impl.DistributedLogstreamServiceConfig;
 import io.zeebe.logstreams.impl.LogStreamBuilder;
 import io.zeebe.logstreams.impl.log.fs.FsLogSegmentDescriptor;
+import io.zeebe.logstreams.impl.log.index.LogBlockIndex;
 import io.zeebe.logstreams.impl.log.index.LogBlockIndexContext;
+import io.zeebe.logstreams.spi.LogStorage;
 import io.zeebe.logstreams.state.StateStorage;
 import io.zeebe.servicecontainer.testing.ServiceContainerRule;
 import io.zeebe.test.util.AutoCloseableRule;
@@ -78,6 +80,8 @@ public class LogStreamDeleteTest {
   private long secondPosition;
   private long thirdPosition;
   private long fourthPosition;
+  private LogStorage logStorage;
+  private LogBlockIndex logBlockIndex;
   private LogBlockIndexContext indexContext;
 
   protected LogStream buildLogStream(final Consumer<LogStreamBuilder> streamConfig) {
@@ -182,10 +186,12 @@ public class LogStreamDeleteTest {
   public void shouldDeleteFromLogStream() {
     // given
     final LogStream logStream = prepareLogstream();
-    logStream.setExporterPositionSupplier(() -> Long.MAX_VALUE);
+    final long deletePosition = fourthPosition;
 
     // when
-    logStream.delete(fourthPosition);
+    final long deleteAddress = logBlockIndex.lookupBlockAddress(indexContext, deletePosition);
+    logBlockIndex.deleteUpToPosition(indexContext, deletePosition);
+    logStorage.delete(deleteAddress);
 
     // then
     assertThat(events(logStream).count()).isEqualTo(2);
@@ -202,10 +208,12 @@ public class LogStreamDeleteTest {
   public void shouldDeleteUntilLastBlockIndexAddress() {
     // given
     final LogStream logStream = prepareLogstream();
-    logStream.setExporterPositionSupplier(() -> Long.MAX_VALUE);
+    final long deletePosition = Long.MAX_VALUE;
 
     // when
-    logStream.delete(Long.MAX_VALUE);
+    final long deleteAddress = logBlockIndex.lookupBlockAddress(indexContext, deletePosition);
+    logBlockIndex.deleteUpToPosition(indexContext, deletePosition);
+    logStorage.delete(deleteAddress);
 
     // then - segment 0 and 1 are removed
     assertThat(events(logStream).count()).isEqualTo(2);
@@ -225,7 +233,8 @@ public class LogStreamDeleteTest {
     final LogStream logStream = prepareLogstream();
 
     // when
-    logStream.delete(-1);
+    logStorage.delete(-1);
+    logBlockIndex.deleteUpToPosition(indexContext, -1);
 
     // then - segment 0 and 1 are removed
     assertThat(events(logStream).count()).isEqualTo(4);
@@ -238,47 +247,6 @@ public class LogStreamDeleteTest {
         .isNotEmpty();
     assertThat(events(logStream).filter(e -> e.getPosition() == fourthPosition).findAny())
         .isNotEmpty();
-  }
-
-  @Test
-  public void shouldDeleteMinExportedPosition() {
-    // given
-    final LogStream logStream = prepareLogstream();
-
-    // when
-    logStream.setExporterPositionSupplier(() -> thirdPosition);
-    logStream.delete(fourthPosition);
-
-    // then
-    assertThat(events(logStream).count()).isEqualTo(3);
-
-    assertThat(events(logStream).filter(e -> e.getPosition() == firstPosition).findAny()).isEmpty();
-    assertThat(events(logStream).filter(e -> e.getPosition() == secondPosition).findAny())
-        .isNotEmpty();
-    assertThat(events(logStream).filter(e -> e.getPosition() == thirdPosition).findAny())
-        .isNotEmpty();
-    assertThat(events(logStream).filter(e -> e.getPosition() == fourthPosition).findAny())
-        .isNotEmpty();
-  }
-
-  @Test
-  public void shouldNotDeleteWithoutSupplierConfigured() {
-    // given
-    final LogStream logStream = prepareLogstream();
-
-    // when
-    logStream.delete(Long.MAX_VALUE);
-
-    // then
-    assertThat(events(logStream).count()).isEqualTo(4);
-    assertThat(
-        events(logStream)
-            .allMatch(
-                e ->
-                    e.getPosition() == firstPosition
-                        || e.getPosition() == secondPosition
-                        || e.getPosition() == thirdPosition
-                        || e.getPosition() == fourthPosition));
   }
 
   private LogStream prepareLogstream() {
@@ -314,6 +282,10 @@ public class LogStreamDeleteTest {
 
     logStream.setCommitPosition(fourthPosition);
     waitUntil(() -> logStream.getLogBlockIndex().getLastPosition() >= fourthPosition);
+
+    logStorage = logStream.getLogStorage();
+    logBlockIndex = logStream.getLogBlockIndex();
+    indexContext = logBlockIndex.createLogBlockIndexContext();
 
     return logStream;
   }

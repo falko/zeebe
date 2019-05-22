@@ -19,6 +19,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.zeebe.db.impl.DefaultColumnFamily;
 import io.zeebe.db.impl.rocksdb.ZeebeRocksDbFactory;
+import io.zeebe.logstreams.impl.delete.DeletionService;
+import io.zeebe.logstreams.impl.delete.NoopDeletionService;
 import io.zeebe.logstreams.state.ReplicateSnapshotControllerTest.Replicator;
 import io.zeebe.test.util.AutoCloseableRule;
 import java.io.File;
@@ -39,6 +41,7 @@ public class FailingSnapshotChunkReplicationTest {
   private StateSnapshotController receiverSnapshotController;
   private StateStorage receiverStorage;
   private StateStorage replicatorStorage;
+  private final DeletionService deletionService = new NoopDeletionService();
 
   public void setup(SnapshotReplication replicator) throws IOException {
     final File runtimeDirectory = tempFolderRule.newFolder("runtime");
@@ -77,7 +80,7 @@ public class FailingSnapshotChunkReplicationTest {
     final EvilReplicator replicator = new EvilReplicator();
     setup(replicator);
 
-    receiverSnapshotController.consumeReplicatedSnapshots(pos -> {});
+    receiverSnapshotController.consumeReplicatedSnapshots(deletionService);
     replicatorSnapshotController.takeSnapshot(1);
 
     // when
@@ -103,7 +106,7 @@ public class FailingSnapshotChunkReplicationTest {
     final FlakyReplicator replicator = new FlakyReplicator();
     setup(replicator);
 
-    receiverSnapshotController.consumeReplicatedSnapshots(pos -> {});
+    receiverSnapshotController.consumeReplicatedSnapshots(deletionService);
     replicatorSnapshotController.takeSnapshot(1);
 
     // when
@@ -130,14 +133,14 @@ public class FailingSnapshotChunkReplicationTest {
     // given
     final FlakyReplicator flakyReplicator = new FlakyReplicator();
     setup(flakyReplicator);
-    receiverSnapshotController.consumeReplicatedSnapshots(pos -> {});
+    receiverSnapshotController.consumeReplicatedSnapshots(deletionService);
     replicatorSnapshotController.takeSnapshot(1);
     replicatorSnapshotController.replicateLatestSnapshot(Runnable::run);
     replicatorSnapshotController.close();
 
     final Replicator workingReplicator = new Replicator();
     setupReplication(workingReplicator);
-    receiverSnapshotController.consumeReplicatedSnapshots(pos -> {});
+    receiverSnapshotController.consumeReplicatedSnapshots(deletionService);
     replicatorSnapshotController.takeSnapshot(2);
     replicatorSnapshotController.replicateLatestSnapshot(Runnable::run);
 

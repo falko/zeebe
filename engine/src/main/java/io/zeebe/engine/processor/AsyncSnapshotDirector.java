@@ -18,6 +18,7 @@
 package io.zeebe.engine.processor;
 
 import io.zeebe.logstreams.impl.Loggers;
+import io.zeebe.logstreams.impl.delete.DeletionService;
 import io.zeebe.logstreams.log.LogStream;
 import io.zeebe.logstreams.spi.SnapshotController;
 import io.zeebe.util.sched.Actor;
@@ -55,6 +56,7 @@ public class AsyncSnapshotDirector extends Actor {
   private final Duration snapshotRate;
   private final SnapshotMetrics metrics;
   private final String processorName;
+  private final DeletionService deletionService;
   private final int maxSnapshots;
   private final StreamProcessor streamProcessor;
 
@@ -68,6 +70,7 @@ public class AsyncSnapshotDirector extends Actor {
       StreamProcessor streamProcessor,
       SnapshotController snapshotController,
       LogStream logStream,
+      DeletionService deletionService,
       Duration snapshotRate,
       int maxSnapshots,
       SnapshotMetrics metrics) {
@@ -75,6 +78,7 @@ public class AsyncSnapshotDirector extends Actor {
     this.snapshotController = snapshotController;
     this.logStream = logStream;
     this.processorName = streamProcessor.getName();
+    this.deletionService = deletionService;
     this.name = processorName + "-snapshot-director";
     this.snapshotRate = snapshotRate;
     this.maxSnapshots = Math.max(maxSnapshots, 1);
@@ -175,7 +179,7 @@ public class AsyncSnapshotDirector extends Actor {
         try {
           snapshotController.ensureMaxSnapshotCount(maxSnapshots);
           if (snapshotController.getValidSnapshotsCount() == maxSnapshots) {
-            logStream.delete(snapshotController.getPositionToDelete(maxSnapshots));
+            deletionService.delete(snapshotController.getPositionToDelete(maxSnapshots));
           }
 
         } catch (Exception ex) {
