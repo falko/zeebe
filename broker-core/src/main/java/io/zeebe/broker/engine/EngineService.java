@@ -44,6 +44,7 @@ import io.zeebe.engine.processor.workflow.message.MessageEventProcessors;
 import io.zeebe.engine.processor.workflow.timer.DueDateTimerChecker;
 import io.zeebe.engine.state.ZeebeState;
 import io.zeebe.engine.state.deployment.WorkflowState;
+import io.zeebe.logstreams.impl.delete.DeletionService;
 import io.zeebe.logstreams.log.LogStream;
 import io.zeebe.logstreams.log.LogStreamWriterImpl;
 import io.zeebe.protocol.Protocol;
@@ -135,12 +136,15 @@ public class EngineService implements Service<EngineService> {
         StreamProcessorServiceNames.asyncSnapshotingDirectorService(logName, PROCESSOR_NAME);
     final ServiceName<StreamProcessorService> streamProcessorControllerServiceName =
         StreamProcessorServiceNames.streamProcessorService(logName, EngineService.PROCESSOR_NAME);
+    final ServiceName<DeletionService> deletionServiceName =
+        EngineServiceNames.leaderLogStreamDeletionService(partition.getPartitionId());
 
     serviceContext
         .createService(snapshotDirectorServiceName, snapshotDirectorService)
         .dependency(
             streamProcessorControllerServiceName,
             snapshotDirectorService.getStreamProcessorServiceInjector())
+        .dependency(deletionServiceName, snapshotDirectorService.getDeletionServiceInjector())
         .install();
   }
 

@@ -21,14 +21,18 @@ import io.atomix.cluster.messaging.ClusterCommunicationService;
 import io.atomix.cluster.messaging.ClusterEventService;
 import io.zeebe.broker.Loggers;
 import io.zeebe.broker.engine.EngineService;
+import io.zeebe.broker.engine.EngineServiceNames;
 import io.zeebe.broker.engine.impl.StateReplication;
-import io.zeebe.broker.exporter.stream.ExportersState;
+import io.zeebe.broker.exporter.ExporterServiceNames;
+import io.zeebe.broker.logstreams.delete.FollowerLogStreamDeletionService;
+import io.zeebe.broker.logstreams.delete.LeaderLogStreamDeletionService;
 import io.zeebe.broker.logstreams.state.DefaultOnDemandSnapshotReplication;
 import io.zeebe.broker.system.configuration.BrokerCfg;
 import io.zeebe.db.ZeebeDb;
 import io.zeebe.distributedlog.StorageConfiguration;
 import io.zeebe.engine.state.DefaultZeebeDbFactory;
 import io.zeebe.engine.state.StateStorageFactory;
+import io.zeebe.logstreams.impl.delete.DeletionService;
 import io.zeebe.logstreams.log.LogStream;
 import io.zeebe.logstreams.state.NoneSnapshotReplication;
 import io.zeebe.logstreams.state.SnapshotReplication;
@@ -51,7 +55,6 @@ public class Partition implements Service<Partition> {
   private final ClusterCommunicationService communicationService;
   private DefaultOnDemandSnapshotReplication snapshotRequestServer;
   private ExecutorService executor;
-  private String logName;
   private StateSnapshotController snapshotController;
   private SnapshotReplication stateReplication;
 
@@ -86,15 +89,26 @@ public class Partition implements Service<Partition> {
   public void start(final ServiceStartContext startContext) {
     final String streamProcessorName = EngineService.PROCESSOR_NAME;
     logStream = logStreamInjector.getValue();
-    logName = logStream.getLogName();
 
     snapshotController = createSnapshotController();
 
     if (state == RaftState.FOLLOWER) {
-      logStream.setExporterPositionSupplier(this::getLowestReplicatedExportedPosition);
+      final DeletionService followerDeletionService =
+          new FollowerLogStreamDeletionService(
+              logStream, snapshotController, brokerCfg.getCluster().getNodeId());
 
-      snapshotController.consumeReplicatedSnapshots(logStream::delete);
+      snapshotController.consumeReplicatedSnapshots(followerDeletionService);
     } else {
+      final LeaderLogStreamDeletionService leaderDeletionService =
+          new LeaderLogStreamDeletionService(logStream);
+      startContext
+          .createService(
+              EngineServiceNames.leaderLogStreamDeletionService(partitionId), leaderDeletionService)
+          .dependency(
+              ExporterServiceNames.EXPORTER_MANAGER,
+              leaderDeletionService.getExporterManagerInjector())
+          .install();
+
       try {
         snapshotController.recover();
       } catch (Exception e) {
@@ -116,40 +130,6 @@ public class Partition implements Service<Partition> {
             this.snapshotController.replicateLatestSnapshot(Runnable::run);
           });
     }
-  }
-
-  private long getLowestReplicatedExportedPosition() {
-    try {
-      if (snapshotController.getValidSnapshotsCount() > 0) {
-        snapshotController.recover();
-        final ZeebeDb zeebeDb = snapshotController.openDb();
-        final ExportersState exporterState = new ExportersState(zeebeDb, zeebeDb.createContext());
-
-        final long lowestPosition = exporterState.getLowestPosition();
-
-        LOG.debug(
-            "The lowest exported position at follower {} is {}.",
-            brokerCfg.getCluster().getNodeId(),
-            lowestPosition);
-        return lowestPosition;
-      } else {
-        LOG.info(
-            "Follower {} has no exporter snapshot so it can't delete data.",
-            brokerCfg.getCluster().getNodeId());
-      }
-    } catch (Exception e) {
-      LOG.error(
-          "Unexpected error occurred while obtaining the lowest exported position at a follower.",
-          e);
-    } finally {
-      try {
-        snapshotController.close();
-      } catch (Exception e) {
-        LOG.error("Unexpected error occurred while closing the DB.", e);
-      }
-    }
-
-    return -1;
   }
 
   public StorageConfiguration getConfiguration() {

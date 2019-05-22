@@ -41,6 +41,7 @@ import io.zeebe.db.impl.rocksdb.ZeebeRocksDbFactory;
 import io.zeebe.engine.util.LogStreamReaderRule;
 import io.zeebe.engine.util.LogStreamRule;
 import io.zeebe.engine.util.LogStreamWriterRule;
+import io.zeebe.logstreams.impl.delete.NoopDeletionService;
 import io.zeebe.logstreams.log.LogStreamRecordWriter;
 import io.zeebe.logstreams.log.LoggedEvent;
 import io.zeebe.logstreams.spi.SnapshotController;
@@ -704,6 +705,7 @@ public class StreamProcessorControllerTest {
             streamProcessorController,
             snapshotController,
             logStreamRule.getLogStream(),
+            new NoopDeletionService(),
             SNAPSHOT_INTERVAL,
             MAX_SNAPSHOTS,
             metrics);
