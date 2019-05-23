@@ -250,11 +250,17 @@ public class StreamProcessorController extends Actor {
   }
 
   public ActorFuture<Long> getLastProcessedPositionAsync() {
-    return processingStateMachine.getLastProcessedPositionAsync();
+    final CompletableActorFuture<Long> future = new CompletableActorFuture();
+    actor.call(
+        () -> future.complete(processingStateMachine.getLastSuccessfulProcessedEventPosition()));
+    return future;
   }
 
   public ActorFuture<Long> getLastWrittenPositionAsync() {
-    return processingStateMachine.getLastWrittenPositionAsync();
+    final CompletableActorFuture<Long> future = new CompletableActorFuture();
+    actor.call(
+        () -> future.complete(processingStateMachine.getLastSuccessfulProcessedEventPosition()));
+    return future;
   }
 
   public StreamProcessorMetrics getMetrics() {
