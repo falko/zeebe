@@ -99,14 +99,9 @@ public class ExporterRule implements TestRule {
         streams.getStateStorageFactory().create(EXPORTER_PROCESSOR_ID, PROCESSOR_NAME);
     final StateSnapshotController snapshotController =
         spy(new StateSnapshotController(zeebeDbFactory, stateStorage));
+    capturedZeebeDb = spy(snapshotController.openDb());
 
-    doAnswer(
-            invocationOnMock -> {
-              capturedZeebeDb = (ZeebeDb<ZbColumnFamilies>) invocationOnMock.callRealMethod();
-              return capturedZeebeDb;
-            })
-        .when(snapshotController)
-        .openDb();
+    doAnswer(invocationOnMock -> capturedZeebeDb).when(snapshotController).openDb();
 
     final ExporterDirectorContext context =
         new ExporterDirectorContext()
