@@ -32,7 +32,6 @@ import io.zeebe.exporter.api.spi.Exporter;
 import io.zeebe.logstreams.log.LogStream;
 import io.zeebe.logstreams.log.LogStreamReader;
 import io.zeebe.logstreams.log.LoggedEvent;
-import io.zeebe.logstreams.spi.SnapshotController;
 import io.zeebe.protocol.clientapi.RecordType;
 import io.zeebe.protocol.clientapi.ValueType;
 import io.zeebe.protocol.impl.record.RecordMetadata;
@@ -82,7 +81,7 @@ public class ExporterDirector extends Actor implements Service<ExporterDirector>
   private final LogStreamReader logStreamReader;
   private final RecordExporter recordExporter = new RecordExporter();
 
-  private final SnapshotController snapshotController;
+  private final ZeebeDb zeebeDb;
   private final String name;
   private final ExporterDirectorContext context;
   private final RetryStrategy exportingRetryStrategy;
@@ -109,7 +108,7 @@ public class ExporterDirector extends Actor implements Service<ExporterDirector>
     this.exportingRetryStrategy = new AbortableRetryStrategy(actor);
     this.recordWrapStrategy = new EndlessRetryStrategy(actor);
 
-    this.snapshotController = context.getSnapshotController();
+    this.zeebeDb = context.getZeebeDb();
   }
 
   @Override
@@ -164,7 +163,6 @@ public class ExporterDirector extends Actor implements Service<ExporterDirector>
   }
 
   private void recoverFromSnapshot() {
-    final ZeebeDb zeebeDb = snapshotController.openDb();
     this.state = new ExportersState(zeebeDb, zeebeDb.createContext());
 
     final long snapshotPosition = getLowestExporterPosition();

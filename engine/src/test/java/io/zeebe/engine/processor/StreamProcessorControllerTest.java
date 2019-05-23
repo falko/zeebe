@@ -114,7 +114,7 @@ public class StreamProcessorControllerTest {
     // when
     writeEventAndWaitUntilProcessed(EVENT_1);
 
-    asyncSnapshotDirector.close();
+    asyncSnapshotDirector.asyncClose();
     streamProcessorController.closeAsync().join();
 
     // then
@@ -153,7 +153,7 @@ public class StreamProcessorControllerTest {
     // when
     writer.writeEvent(EVENT_1);
     latch.await();
-    asyncSnapshotDirector.close();
+    asyncSnapshotDirector.asyncClose();
     streamProcessorController.closeAsync().join();
 
     // then
@@ -175,7 +175,7 @@ public class StreamProcessorControllerTest {
 
     // when
     writeEventAndWaitUntilProcessedOrFailed(EVENT_1);
-    asyncSnapshotDirector.close();
+    asyncSnapshotDirector.asyncClose();
     streamProcessorController.closeAsync().join();
 
     // then

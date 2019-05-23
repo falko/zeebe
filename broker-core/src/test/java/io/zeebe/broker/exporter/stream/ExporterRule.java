@@ -113,7 +113,7 @@ public class ExporterRule implements TestRule {
             .id(EXPORTER_PROCESSOR_ID)
             .name(PROCESSOR_NAME)
             .logStream(stream)
-            .snapshotController(snapshotController)
+            .zeebeDb(capturedZeebeDb)
             .maxSnapshots(1)
             .descriptors(exporterDescriptors)
             .logStreamReader(new BufferedLogStreamReader())

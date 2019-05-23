@@ -34,7 +34,6 @@ import io.zeebe.db.ZeebeDb;
 import io.zeebe.logstreams.impl.service.LogStreamServiceNames;
 import io.zeebe.logstreams.log.BufferedLogStreamReader;
 import io.zeebe.logstreams.log.LogStream;
-import io.zeebe.logstreams.spi.SnapshotController;
 import io.zeebe.servicecontainer.Service;
 import io.zeebe.servicecontainer.ServiceGroupReference;
 import io.zeebe.servicecontainer.ServiceName;
@@ -84,7 +83,7 @@ public class ExporterManagerService implements Service<ExporterManagerService> {
   }
 
   private void startExporter(ServiceName<Partition> partitionName, Partition partition) {
-    final SnapshotController snapshotController = partition.getSnapshotController();
+    final ZeebeDb zeebeDb = partition.getZeebeDb();
 
     if (exporterRepository.getExporters().isEmpty()) {
       clearExporterState(partition.getZeebeDb());
@@ -95,7 +94,7 @@ public class ExporterManagerService implements Service<ExporterManagerService> {
               .id(EXPORTER_PROCESSOR_ID)
               .name(PROCESSOR_NAME)
               .logStream(partition.getLogStream())
-              .snapshotController(snapshotController)
+              .zeebeDb(zeebeDb)
               .maxSnapshots(dataCfg.getMaxSnapshots())
               .descriptors(exporterRepository.getExporters().values())
               .logStreamReader(new BufferedLogStreamReader())

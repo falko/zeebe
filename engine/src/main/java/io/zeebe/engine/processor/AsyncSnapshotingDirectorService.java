@@ -73,7 +73,7 @@ public class AsyncSnapshotingDirectorService implements Service<AsyncSnapshoting
   @Override
   public void stop(final ServiceStopContext stopContext) {
     if (asyncSnapshotDirector != null) {
-      stopContext.async(asyncSnapshotDirector.close());
+      stopContext.async(asyncSnapshotDirector.asyncClose());
       asyncSnapshotDirector = null;
     }
   }

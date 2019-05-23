@@ -95,10 +95,7 @@ public class ExporterManagerTest {
 
     // when
     brokerRule.getBrokerCfg().setExporters(Collections.emptyList());
-
     brokerRule.restartBroker();
-    // wait for service to be installed
-    waitForStreamProcessor();
 
     // TODO: remove workaround to force new snapshot by publishing new record
     // (https://github.com/zeebe-io/zeebe/issues/2490)
@@ -108,7 +105,7 @@ public class ExporterManagerTest {
     TestExporter.records.clear();
     brokerRule.getBrokerCfg().setExporters(Collections.singletonList(exporterCfg));
     brokerRule.restartBroker();
-    waitForStreamProcessor();
+
     // then
     final long deploymentKey2 = testClient.deploy(WORKFLOW);
     waitUntil(() -> isDeploymentExported(deploymentKey2));
