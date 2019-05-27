@@ -298,7 +298,27 @@ public class EmbeddedBrokerRule extends ExternalResource {
   public <S> S getService(final ServiceName<S> serviceName) {
     final ServiceContainer serviceContainer = broker.getBrokerContext().getServiceContainer();
 
-    final Injector<S> injector = new Injector<>();
+    final Injector<S> injector =
+        new Injector<S>() {
+          @Override
+          public void inject(S service) {
+            LOG.info(
+                "Injected service {} for service name {} to accessor service",
+                service,
+                serviceName);
+            super.inject(service);
+          }
+
+          @Override
+          public S getValue() {
+            final S service = super.getValue();
+            LOG.info(
+                "Returning service {} for service name {} to accessor service",
+                service,
+                serviceName);
+            return service;
+          }
+        };
 
     final ServiceName<TestService> accessorServiceName =
         ServiceName.newServiceName("serviceAccess" + serviceName.getName(), TestService.class);
