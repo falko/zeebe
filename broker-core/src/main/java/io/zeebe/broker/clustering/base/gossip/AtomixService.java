@@ -141,6 +141,8 @@ public class AtomixService implements Service<Atomix> {
             raftPartitionGroupName,
             localMemberId);
     LogstreamConfig.putRestoreFactory(localMemberId, restoreFactory);
+
+    LOG.info("AtomixService started with atomix {}", atomix);
   }
 
   @Override
@@ -153,6 +155,7 @@ public class AtomixService implements Service<Atomix> {
 
   @Override
   public Atomix get() {
+    LOG.info("Returning atomix {} from AtomixService", atomix);
     return atomix;
   }
 
