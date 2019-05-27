@@ -310,6 +310,15 @@ public class EmbeddedBrokerRule extends ExternalResource {
           }
 
           @Override
+          public void uninject() {
+            LOG.info(
+                "Uninjected service {} for service name {} to accessor service",
+                super.getValue(),
+                serviceName);
+            super.uninject();
+          }
+
+          @Override
           public S getValue() {
             final S service = super.getValue();
             LOG.info(
