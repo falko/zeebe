@@ -18,6 +18,8 @@ package io.zeebe.distributedlog.restore;
 import io.zeebe.distributedlog.restore.RestoreInfoResponse.ReplicationTarget;
 import io.zeebe.distributedlog.restore.log.LogReplicationRequest;
 import io.zeebe.distributedlog.restore.log.LogReplicationResponse;
+import io.zeebe.distributedlog.restore.snapshot.SnapshotRestoreRequest;
+import io.zeebe.distributedlog.restore.snapshot.impl.DefaultSnapshotRestoreResponse;
 import java.util.concurrent.CompletableFuture;
 
 public interface RestoreServer extends AutoCloseable {
@@ -78,7 +80,7 @@ public interface RestoreServer extends AutoCloseable {
      *
      * @param request null
      */
-    void onSnapshotRequest(Void request);
+    DefaultSnapshotRestoreResponse onSnapshotRequest(SnapshotRestoreRequest request);
   }
 
   @FunctionalInterface

@@ -23,6 +23,13 @@ public class DefaultSnapshotRestoreResponse implements SnapshotRestoreResponse {
   private boolean isValid;
   private SnapshotChunk snapshotChunk;
 
+  public DefaultSnapshotRestoreResponse() {}
+
+  public DefaultSnapshotRestoreResponse(boolean isValid, SnapshotChunk snapshotChunk) {
+    this.isValid = isValid;
+    this.snapshotChunk = snapshotChunk;
+  }
+
   @Override
   public SnapshotChunk getSnapshotChunk() {
     return null;
