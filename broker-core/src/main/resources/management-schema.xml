@@ -87,6 +87,8 @@
 
   <sbe:message name="RestoreInfoResponse" id="19">
     <field name="replicationTarget" id="0" type="uint8"/>
+    <field name="snapshotId" id="1" type="uint64"/>
+    <field name="numChunks" id="2" type="uint16"/>
   </sbe:message>
 
 </sbe:messageSchema>

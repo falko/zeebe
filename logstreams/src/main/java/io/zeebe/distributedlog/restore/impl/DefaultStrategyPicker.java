@@ -24,6 +24,8 @@ import io.zeebe.distributedlog.restore.RestoreNodeProvider;
 import io.zeebe.distributedlog.restore.RestoreStrategy;
 import io.zeebe.distributedlog.restore.RestoreStrategyPicker;
 import io.zeebe.distributedlog.restore.log.LogReplicator;
+import io.zeebe.distributedlog.restore.snapshot.SnapshotRestoreInfo;
+import io.zeebe.distributedlog.restore.snapshot.SnapshotRestoreStrategy;
 import io.zeebe.logstreams.state.SnapshotRequester;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
@@ -100,11 +102,13 @@ public class DefaultStrategyPicker implements RestoreStrategyPicker {
 
     switch (response.getReplicationTarget()) {
       case SNAPSHOT:
+        final SnapshotRestoreInfo snapshotRestoreInfo = response.getSnapshotRestoreInfo();
         final SnapshotRestoreStrategy snapshotRestoreStrategy =
             new SnapshotRestoreStrategy(
                 client,
                 logReplicator,
                 snapshotReplicator,
+                snapshotRestoreInfo,
                 latestLocalPosition,
                 backupPosition,
                 server,

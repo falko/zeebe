@@ -21,6 +21,7 @@ import io.zeebe.clustering.management.RestoreInfoResponseDecoder;
 import io.zeebe.clustering.management.RestoreInfoResponseEncoder;
 import io.zeebe.distributedlog.restore.RestoreInfoResponse;
 import io.zeebe.distributedlog.restore.impl.DefaultRestoreInfoResponse;
+import io.zeebe.distributedlog.restore.snapshot.SnapshotRestoreInfo;
 import io.zeebe.engine.util.SbeBufferWriterReader;
 import org.agrona.DirectBuffer;
 import org.agrona.MutableDirectBuffer;
@@ -57,12 +58,16 @@ public class SbeRestoreInfoResponse
   public void wrap(DirectBuffer buffer, int offset, int length) {
     super.wrap(buffer, offset, length);
     setReplicationTarget(ENUM_CONSTANTS[decoder.replicationTarget()]);
+    setSnapshotRestoreInfo(decoder.snapshotId(), decoder.numChunks());
   }
 
   @Override
   public void write(MutableDirectBuffer buffer, int offset) {
     super.write(buffer, offset);
     encoder.replicationTarget((short) getReplicationTarget().ordinal());
+    final SnapshotRestoreInfo snapshotRestoreInfo = getSnapshotRestoreInfo();
+    encoder.snapshotId(snapshotRestoreInfo.getSnapshotId());
+    encoder.numChunks(snapshotRestoreInfo.getNumChunks());
   }
 
   @Override
@@ -70,8 +75,17 @@ public class SbeRestoreInfoResponse
     return delegate.getReplicationTarget();
   }
 
+  @Override
+  public SnapshotRestoreInfo getSnapshotRestoreInfo() {
+    return delegate.getSnapshotRestoreInfo();
+  }
+
   public void setReplicationTarget(ReplicationTarget replicationTarget) {
     delegate.setReplicationTarget(replicationTarget);
+  }
+
+  private void setSnapshotRestoreInfo(long snapshotId, int numChunks) {
+    delegate.setSnapshotRestoreInfo(snapshotId, numChunks);
   }
 
   @Override

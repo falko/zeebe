@@ -268,6 +268,15 @@ public class StateSnapshotController implements SnapshotController {
   }
 
   @Override
+  public File getLastValidSnapshotDirectory() {
+    final List<File> snapshots = storage.listByPositionDesc();
+    if (snapshots != null) {
+      return snapshots.get(0);
+    }
+    return null;
+  }
+
+  @Override
   public void addListener(SnapshotReplicationListener listener) {
     replicationController.addListener(listener);
   }

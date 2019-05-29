@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.zeebe.distributedlog.restore.impl;
+package io.zeebe.distributedlog.restore.snapshot;
 
 import io.atomix.cluster.MemberId;
 import io.zeebe.distributedlog.restore.RestoreClient;
@@ -31,12 +31,15 @@ public class SnapshotRestoreStrategy implements RestoreStrategy {
   private final LogReplicator logReplicator;
   private final Logger log;
   private final long backupPosition;
+  private final SnapshotRestoreInfo snapshotRestoreInfo;
   private final long latestLocalPosition;
+  private SnapshotReplicator replicator;
 
   public SnapshotRestoreStrategy(
       RestoreClient client,
       LogReplicator logReplicator,
       SnapshotRequester snapshotReplicator,
+      SnapshotRestoreInfo snapshotRestoreInfo,
       long latestLocalPosition,
       long backupPosition,
       MemberId server,
@@ -44,13 +47,14 @@ public class SnapshotRestoreStrategy implements RestoreStrategy {
     this.client = client;
     this.logReplicator = logReplicator;
     this.snapshotReplicator = snapshotReplicator;
+    this.snapshotRestoreInfo = snapshotRestoreInfo;
     this.latestLocalPosition = latestLocalPosition;
     this.backupPosition = backupPosition;
     this.server = server;
     this.log = log;
   }
 
-  @Override
+  /* @Override
   public CompletableFuture<Long> executeRestoreStrategy() {
     log.debug("Restoring from snapshot");
     final CompletableFuture<Long> replicated = CompletableFuture.completedFuture(null);
@@ -59,6 +63,13 @@ public class SnapshotRestoreStrategy implements RestoreStrategy {
         .thenCompose(nothing -> client.requestSnapshotInfo(server))
         .thenCompose(
             numSnapshots -> snapshotReplicator.getLatestSnapshotsFrom(server, numSnapshots > 1))
+        .thenCompose(nothing -> onSnapshotsReplicated());
+  }*/
+
+  @Override
+  public CompletableFuture<Long> executeRestoreStrategy() {
+    return replicator
+        .replicate(server, snapshotRestoreInfo.getSnapshotId(), snapshotRestoreInfo.getNumChunks())
         .thenCompose(nothing -> onSnapshotsReplicated());
   }
 
