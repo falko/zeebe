@@ -7,7 +7,7 @@ pipeline {
     agent {
       kubernetes {
         cloud 'zeebe-ci'
-        label "zeebe-ci-build_${buildName}"
+        label "zeebe-ci-release_${buildName}"
         defaultContainer 'jnlp'
         yaml '''\
 apiVersion: v1
