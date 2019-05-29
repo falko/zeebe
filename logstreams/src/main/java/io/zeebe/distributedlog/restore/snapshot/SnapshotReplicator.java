@@ -43,7 +43,7 @@ public class SnapshotReplicator {
 
   private void replicateInternal(
       MemberId server, long snapshotId, int chunkIdx, CompletableFuture<Void> future) {
-    /*  SnapshotRequest request;
+    /*  SnapshotRestoreRequest request;
     client
         .requestSnapshotChunk(request)
         .whenCompleteAsync(

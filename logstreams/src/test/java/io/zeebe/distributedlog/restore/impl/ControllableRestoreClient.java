@@ -21,6 +21,8 @@ import io.zeebe.distributedlog.restore.RestoreInfoRequest;
 import io.zeebe.distributedlog.restore.RestoreInfoResponse;
 import io.zeebe.distributedlog.restore.log.LogReplicationRequest;
 import io.zeebe.distributedlog.restore.log.LogReplicationResponse;
+import io.zeebe.distributedlog.restore.snapshot.SnapshotRestoreRequest;
+import io.zeebe.distributedlog.restore.snapshot.SnapshotRestoreResponse;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -37,6 +39,12 @@ public class ControllableRestoreClient implements RestoreClient {
 
   @Override
   public void requestLatestSnapshot(MemberId server) {
+    throw new UnsupportedOperationException("Not yet implemented");
+  }
+
+  @Override
+  public CompletableFuture<SnapshotRestoreResponse> requestSnapshotChunk(
+      MemberId server, SnapshotRestoreRequest request) {
     throw new UnsupportedOperationException("Not yet implemented");
   }
 

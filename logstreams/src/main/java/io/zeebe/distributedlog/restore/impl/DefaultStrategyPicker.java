@@ -32,10 +32,8 @@ import java.util.concurrent.CompletableFuture;
 import org.slf4j.Logger;
 
 /**
- * Implements a restore picking which uses the current stream processor leader as the restore
- * server. If the local node is the current stream processor leader, then it will withdraw from the
- * election, and retry. If there is no leader, then it will simply retry forever with a slight
- * delay.
+ * Implements a restore picking using the given node provider. If there is no available node to
+ * restore from, then it will simply retry forever with a slight delay.
  */
 public class DefaultStrategyPicker implements RestoreStrategyPicker {
   private final RestoreClient client;

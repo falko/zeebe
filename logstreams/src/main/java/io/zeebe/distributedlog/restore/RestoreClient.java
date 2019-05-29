@@ -18,6 +18,8 @@ package io.zeebe.distributedlog.restore;
 import io.atomix.cluster.MemberId;
 import io.zeebe.distributedlog.restore.log.LogReplicationRequest;
 import io.zeebe.distributedlog.restore.log.LogReplicationResponse;
+import io.zeebe.distributedlog.restore.snapshot.SnapshotRestoreRequest;
+import io.zeebe.distributedlog.restore.snapshot.SnapshotRestoreResponse;
 import java.util.concurrent.CompletableFuture;
 
 public interface RestoreClient {
@@ -36,6 +38,9 @@ public interface RestoreClient {
    * @param server target cluster member
    */
   void requestLatestSnapshot(MemberId server);
+
+  CompletableFuture<SnapshotRestoreResponse> requestSnapshotChunk(
+      MemberId server, SnapshotRestoreRequest request);
 
   /**
    * Sends a log replication request to the given cluster member.

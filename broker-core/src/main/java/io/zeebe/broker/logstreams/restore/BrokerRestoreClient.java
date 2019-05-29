@@ -25,6 +25,8 @@ import io.zeebe.distributedlog.restore.RestoreInfoRequest;
 import io.zeebe.distributedlog.restore.RestoreInfoResponse;
 import io.zeebe.distributedlog.restore.log.LogReplicationRequest;
 import io.zeebe.distributedlog.restore.log.LogReplicationResponse;
+import io.zeebe.distributedlog.restore.snapshot.SnapshotRestoreRequest;
+import io.zeebe.distributedlog.restore.snapshot.SnapshotRestoreResponse;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
@@ -88,5 +90,11 @@ public class BrokerRestoreClient implements RestoreClient {
   @Override
   public void requestLatestSnapshot(MemberId server) {
     communicationService.unicast(snapshotRequestTopic, null, server);
+  }
+
+  @Override
+  public CompletableFuture<SnapshotRestoreResponse> requestSnapshotChunk(
+      MemberId server, SnapshotRestoreRequest request) {
+    return communicationService.send(snapshotRequestTopic, request, server); // TODO : serialize
   }
 }

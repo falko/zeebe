@@ -22,6 +22,8 @@ import io.zeebe.distributedlog.restore.RestoreInfoResponse;
 import io.zeebe.distributedlog.restore.log.LogReplicationRequest;
 import io.zeebe.distributedlog.restore.log.LogReplicationResponse;
 import io.zeebe.distributedlog.restore.log.impl.DefaultLogReplicationRequestHandler;
+import io.zeebe.distributedlog.restore.snapshot.SnapshotRestoreRequest;
+import io.zeebe.distributedlog.restore.snapshot.SnapshotRestoreResponse;
 import io.zeebe.logstreams.log.LogStream;
 import io.zeebe.logstreams.state.StateSnapshotController;
 import java.util.concurrent.CompletableFuture;
@@ -50,6 +52,12 @@ public class ReplicatingRestoreClient implements RestoreClient {
   @Override
   public void requestLatestSnapshot(MemberId server) {
     replicatorSnapshotController.replicateLatestSnapshot(Runnable::run);
+  }
+
+  @Override
+  public CompletableFuture<SnapshotRestoreResponse> requestSnapshotChunk(
+      MemberId server, SnapshotRestoreRequest request) {
+    throw new UnsupportedOperationException("Not implemented");
   }
 
   @Override
