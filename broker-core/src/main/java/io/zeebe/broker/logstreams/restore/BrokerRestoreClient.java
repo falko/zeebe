@@ -95,6 +95,11 @@ public class BrokerRestoreClient implements RestoreClient {
   @Override
   public CompletableFuture<SnapshotRestoreResponse> requestSnapshotChunk(
       MemberId server, SnapshotRestoreRequest request) {
-    return communicationService.send(snapshotRequestTopic, request, server); // TODO : serialize
+    return communicationService.send(
+        snapshotRequestTopic,
+        request,
+        SbeSnapshotRestoreRequest::serialize,
+        SbeSnapshotRestoreResponse::new,
+        server); // TODO : serialize
   }
 }

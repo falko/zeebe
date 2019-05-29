@@ -53,6 +53,11 @@ public class SbeSnapshotRestoreResponse
     delegate.setSnapshotChunk(other.getSnapshotChunk());
   }
 
+  public SbeSnapshotRestoreResponse(byte[] bytes) {
+    this();
+    wrap(new UnsafeBuffer(bytes));
+  }
+
   @Override
   public void wrap(DirectBuffer buffer, int offset, int length) {
     super.wrap(buffer, offset, length);

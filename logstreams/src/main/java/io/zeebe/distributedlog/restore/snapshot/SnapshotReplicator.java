@@ -17,6 +17,7 @@ package io.zeebe.distributedlog.restore.snapshot;
 
 import io.atomix.cluster.MemberId;
 import io.zeebe.distributedlog.restore.RestoreClient;
+import io.zeebe.distributedlog.restore.snapshot.impl.DefaultSnapshotRestoreRequest;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import org.slf4j.Logger;
@@ -43,12 +44,12 @@ public class SnapshotReplicator {
 
   private void replicateInternal(
       MemberId server, long snapshotId, int chunkIdx, CompletableFuture<Void> future) {
-    /*  SnapshotRestoreRequest request;
+    DefaultSnapshotRestoreRequest request = new DefaultSnapshotRestoreRequest(snapshotId, chunkIdx);
     client
-        .requestSnapshotChunk(request)
+        .requestSnapshotChunk(server, request)
         .whenCompleteAsync(
             (r, e) -> {
-              if (e != null) {
+              /* if (e != null) {
                 future.completeExceptionally(null);
 
               } else if (!writeChunkToDisk(r.getChunk())) {
@@ -59,8 +60,8 @@ public class SnapshotReplicator {
                 future.complete(null);
               } else {
                 future.completeExceptionally(null);
-              }
+              }*/
             },
-            executor);*/
+            executor);
   }
 }
