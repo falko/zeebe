@@ -49,12 +49,6 @@ spec:
       }
     }
 
-    parameters {
-        string(name: 'RELEASE_VERSION', defaultValue: '0.x.0', description: 'Which version to release?')
-        string(name: 'DEVELOPMENT_VERSION', defaultValue: '0.y.0-SNAPSHOT', description: 'Next development version?')
-        booleanParam(name: 'PUSH_CHANGES', defaultValue: true, description: 'Push release to remote repositories and deploy docs?')
-    }
-
     environment {
       NEXUS = credentials("camunda-nexus")
       MAVEN_CENTRAL = credentials('maven_central_deployment_credentials')
