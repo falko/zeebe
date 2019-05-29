@@ -49,10 +49,10 @@ spec:
       tty: true
       resources:
         limits:
-          cpu: 500m
+          cpu: 2
           memory: 1Gi
         requests:
-          cpu: 500m
+          cpu: 2
           memory: 1Gi
 '''
       }
