@@ -122,7 +122,7 @@ spec:
         stage('Publish Docs') {
             when { expression { return params.PUSH_CHANGES } }
             build job: 'zeebe-docs', parameters: [
-                string(name: 'BRANCH', value: env.RELEASE_BRANCH)
+                string(name: 'BRANCH', value: env.RELEASE_BRANCH),
                 booleanParam(name: 'LIVE', value: true)
             ]
         }
