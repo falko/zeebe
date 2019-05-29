@@ -27,6 +27,15 @@ spec:
       image: maven:3.6.0-jdk-8
       command: ["cat"]
       tty: true
+      env:
+        - name: LIMITS_CPU
+          valueFrom:
+            resourceFieldRef:
+              resource: limits.cpu
+        - name: JAVA_TOOL_OPTIONS
+          value: |
+            -XX:+UnlockExperimentalVMOptions
+            -XX:+UseCGroupMemoryLimitForHeap
       resources:
         limits:
           cpu: 500m
