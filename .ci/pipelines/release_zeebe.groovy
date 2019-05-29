@@ -64,7 +64,11 @@ spec:
       GPG_PASS = credentials('password_maven_central_gpg_signing_key')
       GPG_PUB_KEY = credentials('maven_central_gpg_signing_key_pub')
       GPG_SEC_KEY = credentials('maven_central_gpg_signing_key_sec')
+      RELEASE_VERSION = params.RELEASE_VERSION
       RELEASE_BRANCH = "release-${params.RELEASE_VERSION}"
+      DEVELOPMENT_VERSION = params.DEVELOPMENT_VERSION
+      PUSH_CHANGES = params.PUSH_CHANGES
+      SKIP_DEPLOY = !params.PUSH_CHANGES
     }
 
     options {
