@@ -32,12 +32,12 @@ public class DefaultSnapshotRestoreResponse implements SnapshotRestoreResponse {
 
   @Override
   public SnapshotChunk getSnapshotChunk() {
-    return null;
+    return snapshotChunk;
   }
 
   @Override
   public boolean isValid() {
-    return false;
+    return isValid;
   }
 
   public void setIsValid(boolean isValid) {

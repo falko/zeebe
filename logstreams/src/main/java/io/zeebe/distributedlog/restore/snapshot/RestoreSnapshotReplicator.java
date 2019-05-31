@@ -15,28 +15,21 @@
  */
 package io.zeebe.distributedlog.restore.snapshot;
 
-import static java.nio.file.StandardOpenOption.CREATE_NEW;
-
 import io.atomix.cluster.MemberId;
 import io.zeebe.distributedlog.restore.RestoreClient;
 import io.zeebe.distributedlog.restore.snapshot.impl.DefaultSnapshotRestoreRequest;
-import io.zeebe.logstreams.state.SnapshotChunk;
 import io.zeebe.logstreams.state.StateStorage;
+import io.zeebe.util.ZbLogger;
 import io.zeebe.util.collection.Tuple;
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.FileAlreadyExistsException;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.zip.CRC32;
 import org.slf4j.Logger;
 
 public class RestoreSnapshotReplicator {
 
   private final RestoreClient client;
   private final SnapshotRestoreContext restoreContext;
+  private SnapshotConsumer snapshotConsumer;
   private int partitionId;
   private final Executor executor;
   private final Logger logger;
@@ -46,15 +39,35 @@ public class RestoreSnapshotReplicator {
   public RestoreSnapshotReplicator(
       RestoreClient client,
       SnapshotRestoreContext restoreContext,
+      SnapshotConsumer snapshotConsumer,
+      StateStorage stateStorage,
       int partitionId,
       Executor executor,
       Logger logger) {
     this.client = client;
     this.restoreContext = restoreContext;
+    this.snapshotConsumer = snapshotConsumer;
     this.partitionId = partitionId;
     this.executor = executor;
-    this.stateStorage = restoreContext.getStateStorage(partitionId);
+    this.stateStorage = stateStorage;
     this.logger = logger;
+  }
+
+  public RestoreSnapshotReplicator(
+      RestoreClient client,
+      SnapshotRestoreContext restoreContext,
+      SnapshotConsumer snapshotConsumer,
+      StateStorage stateStorage,
+      int partitionId,
+      Executor executor) {
+    this(
+        client,
+        restoreContext,
+        snapshotConsumer,
+        stateStorage,
+        partitionId,
+        executor,
+        new ZbLogger(RestoreSnapshotReplicator.class));
   }
 
   public CompletableFuture<Tuple<Long, Long>> replicate(
@@ -74,89 +87,28 @@ public class RestoreSnapshotReplicator {
         .whenCompleteAsync(
             (r, e) -> {
               if (e != null) {
-                future.completeExceptionally(e);
-              } else if (!writeChunkToDisk(r.getSnapshotChunk(), stateStorage)) {
-                future.completeExceptionally(e);
+                failReplication(snapshotId, future, e);
+              } else if (!r.isValid()) {
+                failReplication(snapshotId, future, new RuntimeException());
+              } else if (!snapshotConsumer.consumeSnapshotChunk(r.getSnapshotChunk())) {
+                failReplication(snapshotId, future, new RuntimeException());
               } else if (chunkIdx + 1 < numChunks) {
                 replicateInternal(server, snapshotId, chunkIdx + 1, future);
-              } else if (tryToMarkSnapshotAsValid(stateStorage, snapshotId)) {
+              } else if (snapshotConsumer.markSnapshotValid(snapshotId)) {
                 final Long exportedPosition =
                     restoreContext.getExporterPositionSupplier(stateStorage).get();
                 final Long processedPosition =
                     restoreContext.getProcessorPositionSupplier(partitionId, stateStorage).get();
                 future.complete(new Tuple(exportedPosition, processedPosition));
               } else {
-                future.completeExceptionally(e);
+                failReplication(snapshotId, future, new RuntimeException());
               }
             },
             executor);
   }
 
-  // TODO: following methods copied from ReplicaitonController
-
-  private static long createChecksum(byte[] content) {
-    final CRC32 crc32 = new CRC32();
-    crc32.update(content);
-    return crc32.getValue();
-  }
-
-  private boolean writeChunkToDisk(SnapshotChunk snapshotChunk, StateStorage storage) {
-    final long snapshotPosition = snapshotChunk.getSnapshotPosition();
-    final String snapshotName = Long.toString(snapshotPosition);
-    final String chunkName = snapshotChunk.getChunkName();
-
-    if (storage.existSnapshot(snapshotPosition)) {
-      return true;
-    }
-
-    final long expectedChecksum = snapshotChunk.getChecksum();
-    final long actualChecksum = createChecksum(snapshotChunk.getContent());
-
-    if (expectedChecksum != actualChecksum) {
-      return false;
-    }
-
-    final File tmpSnapshotDirectory = storage.getTmpSnapshotDirectoryFor(snapshotName);
-    if (!tmpSnapshotDirectory.exists()) {
-      tmpSnapshotDirectory.mkdirs();
-    }
-
-    final File snapshotFile = new File(tmpSnapshotDirectory, chunkName);
-    if (snapshotFile.exists()) {
-      logger.debug("Received a snapshot file which already exist '{}'.", snapshotFile);
-      return false;
-    }
-
-    logger.debug("Consume snapshot chunk {}", chunkName);
-    return writeReceivedSnapshotChunk(snapshotChunk, snapshotFile);
-  }
-
-  private boolean writeReceivedSnapshotChunk(SnapshotChunk snapshotChunk, File snapshotFile) {
-    try {
-      Files.write(
-          snapshotFile.toPath(), snapshotChunk.getContent(), CREATE_NEW, StandardOpenOption.WRITE);
-      logger.debug("Wrote replicated snapshot chunk to file {}", snapshotFile.toPath());
-      return true;
-    } catch (IOException ioe) {
-      logger.error(
-          "Unexpected error occurred on writing an snapshot chunk to '{}'.", snapshotFile, ioe);
-      return false;
-    }
-  }
-
-  private boolean tryToMarkSnapshotAsValid(StateStorage storage, long snapshotId) {
-
-    final File validSnapshotDirectory = storage.getSnapshotDirectoryFor(snapshotId);
-
-    final File tmpSnapshotDirectory = storage.getTmpSnapshotDirectoryFor(Long.toString(snapshotId));
-
-    try {
-      Files.move(tmpSnapshotDirectory.toPath(), validSnapshotDirectory.toPath());
-      return true;
-    } catch (FileAlreadyExistsException e) {
-      return true;
-    } catch (IOException ioe) {
-      return false;
-    }
+  private void failReplication(long snapshotId, CompletableFuture future, Throwable error) {
+    future.completeExceptionally(error);
+    snapshotConsumer.clearTmpSnapshot(snapshotId);
   }
 }

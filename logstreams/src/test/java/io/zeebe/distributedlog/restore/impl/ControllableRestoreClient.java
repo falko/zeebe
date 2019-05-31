@@ -33,6 +33,9 @@ public class ControllableRestoreClient implements RestoreClient {
   private final Map<Long, CompletableFuture<LogReplicationResponse>> logReplicationRequests =
       new HashMap<>();
 
+  private final Map<Integer, CompletableFuture<SnapshotRestoreResponse>>
+      snapshotReplicationRequests = new HashMap<>();
+
   public CompletableFuture<Integer> requestSnapshotInfo(MemberId server) {
     throw new UnsupportedOperationException("Not yet implemented");
   }
@@ -45,7 +48,20 @@ public class ControllableRestoreClient implements RestoreClient {
   @Override
   public CompletableFuture<SnapshotRestoreResponse> requestSnapshotChunk(
       MemberId server, SnapshotRestoreRequest request) {
-    throw new UnsupportedOperationException("Not yet implemented");
+    return snapshotReplicationRequests.computeIfAbsent(
+        request.getChunkIdx(), k -> new CompletableFuture<>());
+  }
+
+  public void completeRequestSnapshotChunk(int chunkIdx, SnapshotRestoreResponse response) {
+    snapshotReplicationRequests
+        .computeIfAbsent(chunkIdx, k -> new CompletableFuture<>())
+        .complete(response);
+  }
+
+  public void completeRequestSnapshotChunk(int chunkIdx, Throwable throwable) {
+    snapshotReplicationRequests
+        .computeIfAbsent(chunkIdx, k -> new CompletableFuture<>())
+        .completeExceptionally(throwable);
   }
 
   public List<LogReplicationRequest> requestLog = new ArrayList<>();

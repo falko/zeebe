@@ -36,6 +36,9 @@ import io.zeebe.distributedlog.restore.impl.DefaultStrategyPicker;
 import io.zeebe.distributedlog.restore.log.LogReplicationAppender;
 import io.zeebe.distributedlog.restore.log.LogReplicator;
 import io.zeebe.distributedlog.restore.snapshot.RestoreSnapshotReplicator;
+import io.zeebe.distributedlog.restore.snapshot.SnapshotConsumer;
+import io.zeebe.distributedlog.restore.snapshot.SnapshotRestoreContext;
+import io.zeebe.distributedlog.restore.snapshot.impl.SnapshotConsumerImpl;
 import io.zeebe.logstreams.LogStreams;
 import io.zeebe.logstreams.impl.service.LogStreamServiceNames;
 import io.zeebe.logstreams.log.BufferedLogStreamReader;
@@ -294,10 +297,17 @@ public class DefaultDistributedLogstreamService
     final RestoreClient restoreClient = clientFactory.createClient(partitionId);
     final LogReplicator logReplicator =
         new LogReplicator(this, restoreClient, restoreThreadContext, LOG);
+
+    final SnapshotRestoreContext snapshotRestoreContext =
+        clientFactory.createSnapshotRestoreContext();
+    final StateStorage storage = snapshotRestoreContext.getStateStorage(partitionId);
+    final SnapshotConsumer snapshotConsumer = new SnapshotConsumerImpl(storage, LOG);
     final RestoreSnapshotReplicator snapshotReplicator =
         new RestoreSnapshotReplicator(
             restoreClient,
-            clientFactory.createSnapshotRestoreContext(),
+            snapshotRestoreContext,
+            snapshotConsumer,
+            storage,
             partitionId,
             restoreThreadContext,
             LOG);
