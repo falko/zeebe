@@ -277,16 +277,6 @@ public class StateSnapshotController implements SnapshotController {
   }
 
   @Override
-  public void addListener(SnapshotReplicationListener listener) {
-    replicationController.addListener(listener);
-  }
-
-  @Override
-  public void removeListener(SnapshotReplicationListener listener) {
-    replicationController.removeListener(listener);
-  }
-
-  @Override
   public File getSnapshotDirectoryFor(long snapshotId) {
     return storage.getSnapshotDirectoryFor(snapshotId);
   }

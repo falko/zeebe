@@ -48,18 +48,6 @@ public class SnapshotRestoreStrategy implements RestoreStrategy {
     this.log = log;
   }
 
-  /* @Override
-  public CompletableFuture<Long> executeRestoreStrategy() {
-    log.debug("Restoring from snapshot");
-    final CompletableFuture<Long> replicated = CompletableFuture.completedFuture(null);
-
-    return replicated
-        .thenCompose(nothing -> client.requestSnapshotInfo(server))
-        .thenCompose(
-            numSnapshots -> snapshotReplicator.getLatestSnapshotsFrom(server, numSnapshots > 1))
-        .thenCompose(nothing -> onSnapshotsReplicated());
-  }*/
-
   @Override
   public CompletableFuture<Long> executeRestoreStrategy() {
     return replicator
