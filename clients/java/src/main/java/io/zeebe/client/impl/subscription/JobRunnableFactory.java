@@ -47,10 +47,14 @@ public class JobRunnableFactory {
           job.getKey(),
           job.getType(),
           e);
+      String message = e.getMessage();
+      if (message == null) {
+        message = "Unknown error";
+      }
       jobClient
           .newFailCommand(job.getKey())
           .retries(job.getRetries() - 1)
-          .errorMessage(e.getMessage())
+          .errorMessage(message)
           .send();
     } finally {
       doneCallback.run();
