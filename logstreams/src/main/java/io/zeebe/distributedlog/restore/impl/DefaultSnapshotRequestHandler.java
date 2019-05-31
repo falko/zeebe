@@ -54,11 +54,11 @@ public class DefaultSnapshotRequestHandler implements SnapshotRequestHandler {
         }
       }
     }
-    // TODO: Handle error cases
+    // TODO: Handle when response is invalid
     return new DefaultSnapshotRestoreResponse(false, null);
   }
 
-  // TODO: following methods copied from ReplicaitonController
+  // TODO: following methods copied from ReplicationController
 
   private static long createChecksum(byte[] content) {
     final CRC32 crc32 = new CRC32();

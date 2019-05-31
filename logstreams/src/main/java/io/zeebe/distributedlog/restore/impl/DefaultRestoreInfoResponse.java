@@ -42,7 +42,7 @@ public class DefaultRestoreInfoResponse implements RestoreInfoResponse {
 
   @Override
   public SnapshotRestoreInfo getSnapshotRestoreInfo() {
-    return null;
+    return snapshotRestoreInfo;
   }
 
   public void setReplicationTarget(ReplicationTarget replicationTarget) {

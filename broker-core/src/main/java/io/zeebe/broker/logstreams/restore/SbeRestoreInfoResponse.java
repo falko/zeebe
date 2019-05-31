@@ -47,6 +47,7 @@ public class SbeRestoreInfoResponse
   public SbeRestoreInfoResponse(RestoreInfoResponse other) {
     this();
     setReplicationTarget(other.getReplicationTarget());
+    setSnapshotRestoreInfo(other.getSnapshotRestoreInfo());
   }
 
   public SbeRestoreInfoResponse(byte[] serialized) {
@@ -66,8 +67,13 @@ public class SbeRestoreInfoResponse
     super.write(buffer, offset);
     encoder.replicationTarget((short) getReplicationTarget().ordinal());
     final SnapshotRestoreInfo snapshotRestoreInfo = getSnapshotRestoreInfo();
-    encoder.snapshotId(snapshotRestoreInfo.getSnapshotId());
-    encoder.numChunks(snapshotRestoreInfo.getNumChunks());
+    if (snapshotRestoreInfo != null) {
+      encoder.snapshotId(snapshotRestoreInfo.getSnapshotId());
+      encoder.numChunks(snapshotRestoreInfo.getNumChunks());
+    } else {
+      encoder.snapshotId(RestoreInfoResponseEncoder.snapshotIdNullValue());
+      encoder.numChunks(RestoreInfoResponseEncoder.numChunksNullValue());
+    }
   }
 
   @Override
@@ -86,6 +92,10 @@ public class SbeRestoreInfoResponse
 
   private void setSnapshotRestoreInfo(long snapshotId, int numChunks) {
     delegate.setSnapshotRestoreInfo(snapshotId, numChunks);
+  }
+
+  private void setSnapshotRestoreInfo(SnapshotRestoreInfo snapshotRestoreInfo) {
+    delegate.setSnapshotRestoreInfo(snapshotRestoreInfo);
   }
 
   @Override

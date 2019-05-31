@@ -27,6 +27,7 @@ import io.zeebe.distributedlog.restore.snapshot.impl.DefaultSnapshotRestoreReque
 import io.zeebe.engine.util.SbeBufferWriterReader;
 import org.agrona.DirectBuffer;
 import org.agrona.MutableDirectBuffer;
+import org.agrona.concurrent.UnsafeBuffer;
 
 public class SbeSnapshotRestoreRequest
     extends SbeBufferWriterReader<SnapshotRestoreRequestEncoder, SnapshotRestoreRequestDecoder>
@@ -48,6 +49,11 @@ public class SbeSnapshotRestoreRequest
     this();
     setChunkIdx(request.getChunkIdx());
     setSnapshotId(request.getSnapshotId());
+  }
+
+  public SbeSnapshotRestoreRequest(byte[] bytes) {
+    this();
+    wrap(new UnsafeBuffer(bytes));
   }
 
   @Override

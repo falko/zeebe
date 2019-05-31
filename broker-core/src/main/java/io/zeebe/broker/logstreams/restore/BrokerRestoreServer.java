@@ -115,6 +115,10 @@ public class BrokerRestoreServer implements RestoreServer {
   @Override
   public CompletableFuture<Void> serve(SnapshotRequestHandler handler) {
     return communicationService.subscribe(
-        snapshotRequestTopic, handler::onSnapshotRequest, executor);
+        snapshotRequestTopic,
+        SbeSnapshotRestoreRequest::new,
+        handler::onSnapshotRequest,
+        SbeSnapshotRestoreResponse::serialize,
+        executor);
   }
 }

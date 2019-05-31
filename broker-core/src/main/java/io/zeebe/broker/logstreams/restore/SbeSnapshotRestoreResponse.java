@@ -50,7 +50,9 @@ public class SbeSnapshotRestoreResponse
   public SbeSnapshotRestoreResponse(SnapshotRestoreResponse other) {
     this();
     setIsValid(other.isValid());
-    delegate.setSnapshotChunk(other.getSnapshotChunk());
+    if (isValid()) {
+      delegate.setSnapshotChunk(other.getSnapshotChunk());
+    }
   }
 
   public SbeSnapshotRestoreResponse(byte[] bytes) {
@@ -61,9 +63,12 @@ public class SbeSnapshotRestoreResponse
   @Override
   public void wrap(DirectBuffer buffer, int offset, int length) {
     super.wrap(buffer, offset, length);
-    setIsValid(decoder.isValid() == BooleanType.TRUE);
-    decoder.wrapSnapshotChunk(snapshotChunkBuffer);
-    setSnapshotChunk(snapshotChunkBuffer);
+    final boolean valid = decoder.isValid() == BooleanType.TRUE;
+    setIsValid(valid);
+    if (valid) {
+      decoder.wrapSnapshotChunk(snapshotChunkBuffer);
+      setSnapshotChunk(snapshotChunkBuffer);
+    }
   }
 
   private void setSnapshotChunk(DirectBuffer snapshotChunkBuffer) {
@@ -81,10 +86,11 @@ public class SbeSnapshotRestoreResponse
     super.write(buffer, offset);
     encoder.isValid(delegate.isValid() ? BooleanType.TRUE : BooleanType.FALSE);
     if (delegate.isValid()) {
-      final SnapshotChunkImpl chunk = new SnapshotChunkImpl(delegate.getSnapshotChunk());
-      encoder.putSnapshotChunk(chunk.toBytes(), 0, chunk.getLength());
-    } else {
-      // TODO: how to handle error response
+      final byte[] bytes = new SnapshotChunkImpl(delegate.getSnapshotChunk()).toBytes();
+      final DirectBuffer chunk = new UnsafeBuffer();
+      chunk.wrap(bytes, 0, bytes.length);
+
+      encoder.putSnapshotChunk(chunk, 0, chunk.capacity());
     }
   }
 
