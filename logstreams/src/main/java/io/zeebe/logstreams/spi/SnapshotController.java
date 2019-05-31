@@ -110,5 +110,5 @@ public interface SnapshotController extends AutoCloseable {
    */
   void removeListener(SnapshotReplicationListener listener);
 
-  void enableRetrySnapshot(long snapshotPosition);
+  File getSnapshotDirectoryFor(long snapshotId);
 }

@@ -16,37 +16,31 @@
 package io.zeebe.distributedlog.restore.snapshot;
 
 import io.atomix.cluster.MemberId;
-import io.zeebe.distributedlog.restore.RestoreClient;
 import io.zeebe.distributedlog.restore.RestoreStrategy;
 import io.zeebe.distributedlog.restore.log.LogReplicator;
-import io.zeebe.logstreams.state.SnapshotRequester;
 import java.util.concurrent.CompletableFuture;
 import org.slf4j.Logger;
 
 public class SnapshotRestoreStrategy implements RestoreStrategy {
 
-  private final SnapshotRequester snapshotReplicator;
   private final MemberId server;
-  private final RestoreClient client;
   private final LogReplicator logReplicator;
   private final Logger log;
   private final long backupPosition;
   private final SnapshotRestoreInfo snapshotRestoreInfo;
   private final long latestLocalPosition;
-  private SnapshotReplicator replicator;
+  private RestoreSnapshotReplicator replicator;
 
   public SnapshotRestoreStrategy(
-      RestoreClient client,
       LogReplicator logReplicator,
-      SnapshotRequester snapshotReplicator,
+      RestoreSnapshotReplicator replicator,
       SnapshotRestoreInfo snapshotRestoreInfo,
       long latestLocalPosition,
       long backupPosition,
       MemberId server,
       Logger log) {
-    this.client = client;
     this.logReplicator = logReplicator;
-    this.snapshotReplicator = snapshotReplicator;
+    this.replicator = replicator;
     this.snapshotRestoreInfo = snapshotRestoreInfo;
     this.latestLocalPosition = latestLocalPosition;
     this.backupPosition = backupPosition;
@@ -70,12 +64,11 @@ public class SnapshotRestoreStrategy implements RestoreStrategy {
   public CompletableFuture<Long> executeRestoreStrategy() {
     return replicator
         .replicate(server, snapshotRestoreInfo.getSnapshotId(), snapshotRestoreInfo.getNumChunks())
-        .thenCompose(nothing -> onSnapshotsReplicated());
+        .thenCompose(tuple -> onSnapshotsReplicated(tuple.getLeft(), tuple.getRight()));
   }
 
-  private CompletableFuture<Long> onSnapshotsReplicated() {
-    final long exporterPosition = snapshotReplicator.getExporterPosition();
-    final long processedPosition = snapshotReplicator.getProcessedPosition();
+  private CompletableFuture<Long> onSnapshotsReplicated(
+      long exporterPosition, long processedPosition) {
     final long fromPosition =
         Math.max(
             latestLocalPosition, // if exporter position is behind latestLocalPosition

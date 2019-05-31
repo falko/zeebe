@@ -19,8 +19,8 @@ import io.zeebe.distributedlog.restore.RestoreServer.SnapshotRequestHandler;
 import io.zeebe.distributedlog.restore.snapshot.SnapshotRestoreRequest;
 import io.zeebe.distributedlog.restore.snapshot.impl.DefaultSnapshotRestoreResponse;
 import io.zeebe.logstreams.impl.Loggers;
+import io.zeebe.logstreams.spi.SnapshotController;
 import io.zeebe.logstreams.state.SnapshotChunk;
-import io.zeebe.logstreams.state.StateStorage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -31,16 +31,17 @@ import org.slf4j.Logger;
 public class DefaultSnapshotRequestHandler implements SnapshotRequestHandler {
 
   private static final Logger LOG = Loggers.PROCESSOR_LOGGER;
-  private final StateStorage snapshotStorage;
+  private final SnapshotController snapshotController;
 
-  public DefaultSnapshotRequestHandler(StateStorage snapshotStorage) {
-    this.snapshotStorage = snapshotStorage;
+  public DefaultSnapshotRequestHandler(SnapshotController snapshotStorage) {
+    this.snapshotController = snapshotStorage;
   }
 
   @Override
   public DefaultSnapshotRestoreResponse onSnapshotRequest(SnapshotRestoreRequest request) {
     LOG.trace("Replicating snapshot on demand");
-    final File snapshotDirectory = snapshotStorage.getSnapshotDirectoryFor(request.getSnapshotId());
+    final File snapshotDirectory =
+        snapshotController.getSnapshotDirectoryFor(request.getSnapshotId());
     if (snapshotDirectory.exists()) {
       final File[] files = snapshotDirectory.listFiles();
       Arrays.sort(files);

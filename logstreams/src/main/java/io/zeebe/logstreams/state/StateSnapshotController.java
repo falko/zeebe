@@ -287,8 +287,8 @@ public class StateSnapshotController implements SnapshotController {
   }
 
   @Override
-  public void enableRetrySnapshot(long snapshotPosition) {
-    replicationController.clearInvalidatedSnapshot(snapshotPosition);
+  public File getSnapshotDirectoryFor(long snapshotId) {
+    return storage.getSnapshotDirectoryFor(snapshotId);
   }
 
   @Override
